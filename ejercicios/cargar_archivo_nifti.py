@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 partes_cerebro = ["sagital", "coronal", "axial"]
  
 # Cargar la imagen NIfTI
-imagen = nib.load('data/Brats18_2013_2_1_flair.nii.gz')
+imagen = nib.load('data/Brats18_2013_2_1/Brats18_2013_2_1_flair.nii.gz')
 
 # Extraer los datos numéricos }
 data = imagen.get_fdata()
