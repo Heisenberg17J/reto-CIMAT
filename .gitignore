@@ -4,3 +4,6 @@ data/
 __pycache__/
 *.pyc
 .env
+.vscode
+data_normalizada/
+resultados/variante_b/imagenes/

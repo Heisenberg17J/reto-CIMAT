@@ -1,0 +1,80 @@
+# =====================================================================================
+# PyRadiomics parameter file: BraTS 2018 (MICCAI_BraTS_2018_Data_Training), draft v0
+# Extracted using PyRadiomics version: 3.0.1   <-- keep this line in sync with the installed version
+#
+# ASSUMPTIONS (each must also have an entry in DECISIONES.md):
+#   A1. Input images were already intensity-normalized in Block 3 (z-score computed on brain
+#       voxels only, i.e. nonzero voxels) and saved as float NIfTI. Values are in SD units.
+#   A2. One binary mask per region (WT = {1,2,4}, TC = {1,4}, ET = {4}), each with value 1.
+#   A3. Original image type only (first pass). Wavelet/LoG remain an OPEN DECISION.
+# =====================================================================================
+imageType:
+  Original: {}
+  # LoG:     {sigma: [1.0, 2.0, 3.0, 4.0, 5.0]}   # 1 mm isotropic, so sigma >= 1 mm is valid
+  # Wavelet: {}                                    # coif1, level 1: 8 decompositions
+
+featureClass:
+  shape:        # computed from the MASK only, identical across t1/t1ce/t2/flair; dedupe downstream
+  firstorder:
+  glcm:         # all except SumAverage (= 2*JointAverage, redundant); MCC kept
+    - Autocorrelation
+    - JointAverage
+    - ClusterProminence
+    - ClusterShade
+    - ClusterTendency
+    - Contrast
+    - Correlation
+    - DifferenceAverage
+    - DifferenceEntropy
+    - DifferenceVariance
+    - JointEnergy
+    - JointEntropy
+    - Imc1
+    - Imc2
+    - Idm
+    - Idmn
+    - Id
+    - Idn
+    - InverseVariance
+    - MaximumProbability
+    - SumEntropy
+    - SumSquares
+    - MCC
+  glrlm:
+  glszm:
+  gldm:
+  ngtdm:
+
+setting:
+  # --- Intensity normalization: done in Block 3, NOT here (see A1) ---
+  # PyRadiomics' own normalize uses sitk.Normalize over ALL voxels, including the ~82% background
+  # zeros in BraTS, which biases mean and SD. Keep this false.
+  normalize: false
+
+  # --- Geometry: BraTS is already 1x1x1 mm isotropic and co-registered ---
+  # resampledPixelSpacing omitted, so no resampling (default None)
+  force2D: false          # true 3D texture; voxels are isotropic
+  correctMask: false      # identical affines; a geometry error should fail loudly
+  preCrop: true           # crop to mask bounding box + padDistance before filtering (speed/memory)
+  padDistance: 10         # only matters when filters are enabled; >= largest LoG sigma
+
+  # --- Discretization (DECIDED: binWidth 0.1, see DECISIONES.md D9) ---
+  # Fixed bin width (absolute discretization, FBS) on the z-score scale.
+  # The team's 5-25 grid assumes x100 scaling; on unitless z-scores the equivalent grid is 0.05-0.25.
+  # Choose so that firstorder_Range / binWidth falls roughly within 30-130 bins for most ROIs.
+  binWidth: 0.1
+
+  # --- First order ---
+  voxelArrayShift: 0      # IBSI-consistent (no shift); affects Energy, TotalEnergy, RMS only
+
+  # --- Texture matrices ---
+  distances: [1]
+  symmetricalGLCM: true
+  gldm_a: 0
+  # weightingNorm omitted: features computed per direction (13 in 3D) and averaged
+
+  # --- ROI validity (OPEN DECISION for empty/small ET) ---
+  label: 1
+  minimumROIDimensions: 3   # reject ROIs that are flat in any axis
+  minimumROISize: 27        # placeholder; empty ET raises ValueError("Label (1) not present")
+  additionalInfo: true      # keeps diagnostics_* columns (provenance); drop them before modeling
