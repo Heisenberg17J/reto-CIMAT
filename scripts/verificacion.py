@@ -9,23 +9,21 @@ Comprueba, para cada paciente, que los 5 archivos son lo que creemos:
   4. seg      -> etiquetas presentes
   5. conteo   -> volumen de cada region
 
-Espera una estructura:
-    data/
-      Brats18_XXXX/
-        Brats18_XXXX_t1.nii.gz
-        Brats18_XXXX_t1ce.nii.gz
-        Brats18_XXXX_t2.nii.gz
-        Brats18_XXXX_flair.nii.gz
-        Brats18_XXXX_seg.nii.gz
+Lee los pacientes de data/manifest.csv (generado por organizar_datos.py,
+Bloque 1), asi que no depende de como esten organizadas las carpetas.
+
+Uso (desde la raiz del repo):
+    python scripts/verificacion.py
 """
 
 from pathlib import Path
 import numpy as np
 import nibabel as nib
 
+import paciente as p
 from regiones import leer_umbrales
 
-RAIZ = Path("data")
+MANIFEST = Path("data/manifest.csv")
 MODALIDADES = ["t1", "t1ce", "t2", "flair"]
 ARCHIVOS = MODALIDADES + ["seg"]
 
@@ -41,24 +39,21 @@ MINIMO_VOXELES, _ = leer_umbrales()
 TOL = 1e-4
 
 
-def ruta(carpeta, sufijo):
-    return carpeta / f"{carpeta.name}_{sufijo}.nii.gz"
-
-
-def verificar_paciente(carpeta):
+def verificar_paciente(pac):
     """Devuelve (lista_de_alertas, dict_con_volumenes)."""
     alertas = []
-    print(f"\n{'=' * 62}\nPACIENTE: {carpeta.name}\n{'=' * 62}")
+    rutas = pac.rutas()
+    print(f"\n{'=' * 62}\nPACIENTE: {pac.paciente_id}\n{'=' * 62}")
 
     # --- existencia de archivos ------------------------------------
-    faltantes = [s for s in ARCHIVOS if not ruta(carpeta, s).exists()]
+    faltantes = [s for s in ARCHIVOS if not rutas[s].exists()]
     if faltantes:
         alertas.append(f"faltan archivos: {', '.join(faltantes)}")
         print(f"  !! FALTAN: {faltantes}")
         return alertas, {}
 
     # --- cargar solo las cabeceras (no hace falta leer los datos) ---
-    imgs = {s: nib.load(ruta(carpeta, s)) for s in ARCHIVOS}
+    imgs = {s: nib.load(rutas[s]) for s in ARCHIVOS}
 
     # --- 1. shape ---------------------------------------------------
     print("\n[1] SHAPE")
@@ -138,20 +133,16 @@ def verificar_paciente(carpeta):
 
 
 def main():
-    carpetas = sorted(p for p in RAIZ.iterdir() if p.is_dir())
-    if not carpetas:
-        print(f"No se encontraron carpetas dentro de {RAIZ}/")
-        return
-
-    print(f"Pacientes encontrados: {len(carpetas)}")
+    pacientes = p.cargar_pacientes(MANIFEST)
+    print(f"Pacientes en {MANIFEST}: {len(pacientes)}")
     resumen = {}
     todas = {}
 
-    for c in carpetas:
-        alertas, vols = verificar_paciente(c)
-        resumen[c.name] = alertas
+    for pac in pacientes:
+        alertas, vols = verificar_paciente(pac)
+        resumen[pac.paciente_id] = alertas
         if vols:
-            todas[c.name] = vols
+            todas[pac.paciente_id] = vols
 
     # --- tabla comparativa entre pacientes --------------------------
     if todas:

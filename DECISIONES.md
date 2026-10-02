@@ -17,12 +17,47 @@ Estados: **Tomada** (implementada) · **Abierta** (pendiente de discutir o de un
 
 ---
 
+## Bloque 1 — Organización de los datos (`scripts/organizar_datos.py`)
+
+### D20. Estructura de entrada y manifest — Tomada
+Los datos originales se dejan tal como vienen de BraTS 2018 (`data/HGG/<id>/`,
+`data/LGG/<id>/`, `data/survival_data.csv`) y no se mueven ni se modifican.
+`organizar_datos.py` genera `data/manifest.csv` (`paciente_id`, `grado` y las 5 rutas) y
+todo el pipeline lee los pacientes de ahí, no de las carpetas. Un paciente solo entra
+al manifest si tiene sus 5 archivos.
+
+Conjunto completo (2026-10-01): **285 pacientes, 210 HGG y 75 LGG**, todos completos.
+
+### D21. Tabla clínica — Tomada
+`data/clinica.csv` contiene una fila por paciente con `grado`, `origen`,
+`tiene_supervivencia`, `edad`, `supervivencia_dias` y `reseccion`. Es la versión
+validada de `survival_data.csv`, que no se toca: ids únicos, todos con imagen, y edad y
+supervivencia numéricas (un texto como "ALIVE" detiene el script en lugar de volverse NaN).
+
+- La supervivencia solo existe para **163 pacientes, todos HGG**. 47 HGG y los 75 LGG no
+  la tienen. Ninguno de los 4 pacientes de prueba (`Brats18_2013_{2,3,4,5}_1`) la tiene.
+- `reseccion`: GTR 59, STR 24 y sin reportar 80. El `NA` del original se guarda vacío.
+- `origen` es la institución, tomada del id (CBICA, TCIA01…TCIA13, 2013). Salvo 2013,
+  ningún origen tiene a la vez HGG y LGG: en una clasificación HGG/LGG, el centro está
+  confundido con la clase. **Abierta:** decidir si la validación cruzada se agrupa o se
+  estratifica por origen.
+
+---
+
 ## Bloque 2 — Verificación (`scripts/verificacion.py`)
 
 ### D1. Comprobaciones previas a la extracción — Tomada
 Para cada paciente se verifica: mismo shape y affine en las 5 imágenes (tolerancia 1e-4),
 spacing isotrópico de 1 mm, etiquetas de `seg` ⊆ {0, 1, 2, 4} y que no haya tumor fuera
 del cerebro.
+
+Resultado con los 285 (2026-10-01): 239 pacientes sin alertas. No hay problemas de
+shape, affine, spacing ni etiquetas inesperadas. Alertas:
+- 27 pacientes **sin etiqueta 4 (ET vacío), todos LGG** (ver D11).
+- 1 paciente sin edema: Brats18_TCIA13_615_1 (LGG).
+- 21 pacientes con tumor fuera del cerebro según t1 > 0 (mediana 10 voxeles; el peor,
+  Brats18_TCIA13_634_1, con 588). Tras la normalización esos voxeles valen 0 dentro de
+  la máscara. **Abierta:** decidir si se ignoran o se excluyen de la máscara.
 
 **Por qué:** la deduplicación de forma (D6) y `correctMask: false` (D5) dependen de que
 las modalidades estén co-registradas.
@@ -124,8 +159,12 @@ quedan comentados en el params. Si se activan, `padDistance: 10` ya cubre el σ 
 lo que agrava el problema de dimensionalidad con pocos pacientes.
 
 ### D11. Regiones pequeñas o vacías — Abierta
-`minimumROISize: 27` y `minimumROIDimensions: 3` son provisionales. En los 4 pacientes
-actuales todas las regiones son válidas, pero en el conjunto completo hay casos sin ET.
+`minimumROISize: 27` y `minimumROIDimensions: 3` son provisionales. En el conjunto
+completo, **27 de los 75 LGG (36 %) no tienen ET**; ningún HGG está en ese caso, y como la
+supervivencia solo es de HGG, no afecta a ese objetivo. En la clasificación HGG/LGG, en
+cambio, la ausencia de ET por sí sola ya predice LGG. Cómo se trate (NaN imputado,
+indicadora, exclusión) cambia lo que el modelo puede aprender, así que hay que decidirlo
+explícitamente.
 
 El params es la única fuente del umbral: `verificacion.py` y `regiones.py` lo leen de ahí
 (`leer_umbrales()`), así que cambiarlo en el params cambia todo el pipeline.
