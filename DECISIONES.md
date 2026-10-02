@@ -37,10 +37,18 @@ supervivencia numéricas (un texto como "ALIVE" detiene el script en lugar de vo
 - La supervivencia solo existe para **163 pacientes, todos HGG**. 47 HGG y los 75 LGG no
   la tienen. Ninguno de los 4 pacientes de prueba (`Brats18_2013_{2,3,4,5}_1`) la tiene.
 - `reseccion`: GTR 59, STR 24 y sin reportar 80. El `NA` del original se guarda vacío.
+  **Cuidado:** el estado de resección solo está reportado en CBICA (81 de 85) y 2013 (2 de
+  2); en todos los TCIA falta. Un valor vacío no es un dato faltante al azar: identifica
+  al centro.
 - `origen` es la institución, tomada del id (CBICA, TCIA01…TCIA13, 2013). Salvo 2013,
   ningún origen tiene a la vez HGG y LGG: en una clasificación HGG/LGG, el centro está
   confundido con la clase. **Abierta:** decidir si la validación cruzada se agrupa o se
   estratifica por origen.
+
+  Los 163 con supervivencia por centro: CBICA 85 (52 %), TCIA02 22, TCIA01 19, TCIA03 12,
+  TCIA08 9, TCIA04 7, TCIA06 5, 2013 2 y TCIA05 2. La mediana de supervivencia varía entre
+  centros (de 131 días en TCIA05 a 446 en TCIA03), aunque con muy pocos pacientes en
+  varios de ellos. Una validación agrupada por centro dejaría folds dominados por CBICA.
 
 ---
 
@@ -57,7 +65,19 @@ shape, affine, spacing ni etiquetas inesperadas. Alertas:
 - 1 paciente sin edema: Brats18_TCIA13_615_1 (LGG).
 - 21 pacientes con tumor fuera del cerebro según t1 > 0 (mediana 10 voxeles; el peor,
   Brats18_TCIA13_634_1, con 588). Tras la normalización esos voxeles valen 0 dentro de
-  la máscara. **Abierta:** decidir si se ignoran o se excluyen de la máscara.
+  la máscara.
+
+  **Decisión (2026-10-02): se documenta y no se re-extrae.** Regla acordada: con 0 o 1
+  HGG con supervivencia afectados se documenta; con 5 o más se re-extrae.
+  - Según t1 = 0, de los 21 pacientes **3 son HGG con supervivencia**: Brats18_2013_11_1,
+    Brats18_2013_27_1 y Brats18_TCIA04_343_1.
+  - Contando los voxeles ≤ 0 en cualquiera de las 4 modalidades (los que la
+    normalización realmente pone en 0), son 28 pacientes y **8 HGG con supervivencia**.
+  - El efecto es mínimo: como máximo el **0.34 %** de los voxeles de una región
+    (Brats18_TCIA04_343_1, t1/WT); en los demás HGG con supervivencia, menos de 0.12 %.
+    En todo el conjunto, el máximo es 0.66 % (Brats18_2013_0_1, t2/TC, LGG).
+  - Re-extraer no arreglaría nada sin cambiar antes las máscaras (por ejemplo,
+    intersectarlas con el cerebro común a las 4 modalidades), y eso cambiaría también la forma.
 
 **Por qué:** la deduplicación de forma (D6) y `correctMask: false` (D5) dependen de que
 las modalidades estén co-registradas.
@@ -134,7 +154,11 @@ supone intensidades escaladas ×100; sobre z-scores sin escalar equivale a 0.05�
 **Decisión (2026-10-01):** se mantiene `binWidth: 0.1` sobre z-score sin escalar, con
 `voxelArrayShift: 0`. Con los 4 pacientes actuales da entre 16 y 128 bins por ROI
 (mediana 55). El criterio de referencia es que `firstorder_Range / binWidth` caiga entre
-~30 y 130 bins en la mayoría de las ROI: hay que revisarlo de nuevo con el conjunto completo.
+~30 y 130 bins en la mayoría de las ROI.
+
+**Revisión con los 285 (2026-10-02):** el **90 %** de las ROI cae entre 30 y 130 bins (7 %
+por debajo y 3 % por encima). Medianas: WT 67, TC 62, ET 56. Los casos con pocos bins son
+ET y TC pequeños (mínimo 6). Se mantiene 0.1.
 
 **Prueba con `binWidth: 25` sin escalar (2026-10-01, 4 pacientes):** descartado. PyRadiomics
 pone los bordes en múltiplos del ancho (−25, 0, 25…) y, como los z-scores van de −4 a 8,
@@ -165,6 +189,11 @@ supervivencia solo es de HGG, no afecta a ese objetivo. En la clasificación HGG
 cambio, la ausencia de ET por sí sola ya predice LGG. Cómo se trate (NaN imputado,
 indicadora, exclusión) cambia lo que el modelo puede aprender, así que hay que decidirlo
 explícitamente.
+
+ET pequeño en HGG (2026-10-02): ningún HGG tiene ET por debajo de 100 voxeles (mínimo 106,
+Brats18_CBICA_BHB_1, con supervivencia). 2 tienen menos de 500 y 3 menos de 1000; solo 1
+de ellos con supervivencia. Aun así, 51 HGG (34 con supervivencia) tienen al menos una
+modalidad con menos de 30 bins en ET: es la región con texturas menos confiables (D9).
 
 El params es la única fuente del umbral: `verificacion.py` y `regiones.py` lo leen de ahí
 (`leer_umbrales()`), así que cambiarlo en el params cambia todo el pipeline.
@@ -223,6 +252,11 @@ para el modelo. Esto concreta D12.
 | 5 | \|valor\| ≥ 1e15 (división por cero encubierta) | Revisión |
 | 6 | Una fila por paciente, `paciente_id` único y presente en el manifest | Crítica |
 
+**Resultado con los 285 (2026-10-02):** pasan todas las críticas. 382 columnas (todas
+las de ET) tienen NaN en los 27 LGG sin ET, como se esperaba (D11). Sin infinitos ni
+valores ≥ 1e15 (máximo 1.0e9). En 7 ET pequeños (mediana 126 voxeles) MeshVolume se
+aleja más de 10 % de VoxelVolume, lo esperable en regiones chicas o fragmentadas.
+
 Si falla una prueba crítica, no se escribe `caracteristicas_qc.csv` y el script termina
 con código 1. Los NaN no se tocan aquí: su tratamiento depende de D11.
 
@@ -236,8 +270,7 @@ eliminación queda registrada con su motivo en `resultados/columnas_eliminadas.c
 **Por qué:** no aportan información y rompen la estandarización (división por varianza
 cero) y algunos modelos.
 
-**Advertencia:** con los 4 pacientes actuales no hay ninguna constante, pero eso no
-prueba nada; el control debe repetirse con el conjunto completo. Como no usa la etiqueta
+**Resultado con los 285 (2026-10-02):** ninguna columna constante; no se eliminó ninguna. Como no usa la etiqueta
 de clase, aplicarlo sobre todos los pacientes no filtra información del objetivo. Las
 columnas *casi* constantes y las redundantes (alta correlación) se tratan en la
 selección de características, no aquí.
