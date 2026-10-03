@@ -1,0 +1,114 @@
+# Reto CIMAT — Gliomas en BraTS 2018
+
+Dos objetivos, con modelos distintos y en este orden:
+
+1. **Segmentación (visión):** un modelo que marca qué parte de la resonancia es tumor y qué parte es cerebro sano.
+2. **Pronóstico (predicción):** un modelo que estima la supervivencia a partir de cómo se ve el tumor, usando radiómica.
+
+Están conectados: en uso real, la radiómica del objetivo 2 se calcula sobre la máscara que dibuja el modelo 1. Por eso los dos usan **la misma partición en folds**.
+
+El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aquí como D*n*.
+
+## Estado (2026-10-02)
+
+| Etapa | Estado |
+|---|---|
+| Organización y verificación de los datos (285 pacientes) | Terminada |
+| Radiómica: `features.csv`, 285 × 1146, con control de calidad | Terminada |
+| Folds compartidos (5 × 57 pacientes) | Terminada |
+| Segmentación: conversión a nnU-Net y prueba de 5 épocas en Colab | Terminada |
+| Segmentación: entrenamiento real de los 5 folds | **Pendiente**: definir hardware y número de épocas |
+| Pronóstico | **Pendiente**: empieza cuando haya máscaras fuera de fold |
+
+## Datos
+
+BraTS 2018, conjunto de entrenamiento: **285 pacientes (210 HGG y 75 LGG)**, cada uno con T1, T1ce, T2, FLAIR y su segmentación. Las etiquetas son 1 necrosis o tumor no realzado, 2 edema y 4 realce.
+
+- La **supervivencia** existe solo para **163 pacientes, todos HGG** (D21).
+- **27 LGG no tienen realce** (ET vacío) (D11).
+- **Centros:** CBICA aporta el 52 % de los pacientes con supervivencia, y el estado de resección solo está reportado en CBICA y en 2013 (D21).
+
+Los datos **no están en git**. Hay que colocarlos así:
+
+```
+data/
+  HGG/Brats18_XXXX/Brats18_XXXX_{t1,t1ce,t2,flair,seg}.nii.gz
+  LGG/Brats18_XXXX/...
+  survival_data.csv
+```
+
+## Entorno
+
+```
+bash crear_env.sh          # crea el entorno conda "radiomica" (Python 3.11, numpy 1.26, pyradiomics 3.0.1)
+conda activate radiomica
+```
+
+La segmentación se entrena en Colab, porque la máquina local no tiene GPU (D0, D23).
+
+## Parte 1 · Radiómica (`scripts/`)
+
+Todo se corre desde la raíz del repo, en este orden:
+
+| Bloque | Script | Qué hace | Salida principal |
+|---|---|---|---|
+| 1 | `organizar_datos.py` | Arma el índice de pacientes y valida la tabla clínica | `data/manifest.csv`, `data/clinica.csv` |
+| 2 | `verificacion.py` | Revisa shape, affine, spacing y etiquetas de cada paciente | informe en pantalla |
+| 3 | `normalizar.py` | Z-score de cada modalidad sobre los voxeles del cerebro (D2) | `data_normalizada/` |
+| 4 | `regiones.py` | Máscaras WT, TC y ET; marca las vacías o pequeñas (D3, D4) | `data_normalizada/manifest_regiones.csv` |
+| 5 | `extraccion.py` | PyRadiomics; la forma una vez por región (D6, D13) | `resultados/caracteristicas.csv` |
+| 6 | `control_calidad.py` | Pruebas de cordura, columnas, NaN, constantes y filas (D16) | `resultados/caracteristicas_qc.csv` |
+| 7 | `exportar.py` | Tabla final más README de procedencia (D18) | `resultados/features.csv` |
+
+```
+nohup sh -c "python scripts/organizar_datos.py && python scripts/verificacion.py && \
+  python scripts/normalizar.py && python scripts/regiones.py && python scripts/extraccion.py && \
+  python scripts/control_calidad.py && python scripts/exportar.py" > logs/flujo_completo.txt 2>&1 &
+```
+
+La extracción tarda unos 20 s por paciente, alrededor de 1.5–2 h en total. `nohup` la mantiene corriendo aunque se cierre la terminal. Si se interrumpe, basta con volver a lanzar el flujo: la normalización se salta lo que ya existe.
+
+**Parámetros:** `params_brats2018_v0.yaml`, con binWidth 0.1 sobre z-score y solo la imagen original (D7–D10).
+
+**Columnas de `features.csv`:** `paciente_id` y luego `<modalidad>_<región>_<clase>_<nombre>`, por ejemplo `t1ce_ET_glcm_Contrast`. La forma aparece como `mask_<región>_shape_<nombre>` (D13). Los 27 LGG sin ET tienen NaN en las 382 columnas de ET.
+
+**Regla:** la selección de características, el filtrado por correlación y la reducción de dimensionalidad van **dentro** de la validación cruzada, nunca sobre `features.csv` (D19).
+
+## Folds compartidos (`scripts/folds.py`)
+
+`particiones/folds.csv` asigna cada paciente a 1 de 5 folds de 57, estratificados por grupo (HGG con supervivencia, HGG sin supervivencia y LGG). **No se regenera:** cambiarlo invalida todo lo entrenado (D22).
+
+Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la validación mide el desempeño con pacientes nuevos de los mismos centros, no la generalización a otro hospital (D22).
+
+## Parte 2 · Segmentación (`segmentacion/`)
+
+1. **Convertir** al formato de nnU-Net (imágenes originales; etiquetas 0/1/2/4 → 0/2/1/3; entrenamiento por regiones WT/TC/ET; nuestros folds) (D23):
+   ```
+   python segmentacion/convertir_nnunet.py --zip
+   ```
+   Genera `nnunet_raw/Dataset501_BraTS2018.zip` (2.3 GB, fuera de git).
+2. **Subir** el zip a Google Drive, en `MyDrive/reto_cimat/`.
+3. **Probar** con `segmentacion/prueba_colab.ipynb`: preprocesa y entrena 5 épocas del fold 0 en una GPU T4.
+4. **Ver predicciones** con `segmentacion/visor_colab.ipynb`: visor corte por corte (real frente a predicción), Dice por paciente y análisis del error según el tamaño del tumor.
+
+**Resultado de la prueba (T4, fold 0):** 463 s por época y 6.7 GB de VRAM. Tras solo 5 épocas, el Dice es WT 0.871, TC 0.752 y ET 0.639. El entrenamiento real de 100 épocas por fold tardaría unas 64 h en Colab gratis; probablemente lo limita la CPU (D23).
+
+**Siguiente paso:** entrenar los 5 folds. Sus predicciones de validación son las máscaras fuera de fold con las que se volverá a correr la radiómica (bloques 4–7) para el objetivo 2.
+
+## Decisiones abiertas
+
+- **D10:** si se agregan filtros LoG o Wavelet, lo que obligaría a re-extraer.
+- **D11:** cómo tratar el ET vacío de los 27 LGG. No afecta al pronóstico, que usa solo HGG.
+- **D23:** dónde entrenar y cuántas épocas; confirmar si la CPU es el cuello de botella.
+
+## Estructura
+
+```
+DECISIONES.md              por qué se hizo cada cosa (D0–D23)
+params_brats2018_v0.yaml   parámetros de PyRadiomics
+crear_env.sh, requirements.txt
+scripts/                   radiómica (bloques 1–7) y folds
+segmentacion/              conversión a nnU-Net y notebooks de Colab
+particiones/folds.csv      partición compartida (versionada)
+data/, data_normalizada/, nnunet_raw/, resultados/, logs/   generados o datos (fuera de git)
+```

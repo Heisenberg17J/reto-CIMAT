@@ -7,3 +7,4 @@ __pycache__/
 .vscode
 data_normalizada/
 resultados/variante_b/imagenes/
+nnunet_raw/

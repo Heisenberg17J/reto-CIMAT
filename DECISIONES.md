@@ -42,8 +42,7 @@ supervivencia numéricas (un texto como "ALIVE" detiene el script en lugar de vo
   al centro.
 - `origen` es la institución, tomada del id (CBICA, TCIA01…TCIA13, 2013). Salvo 2013,
   ningún origen tiene a la vez HGG y LGG: en una clasificación HGG/LGG, el centro está
-  confundido con la clase. **Abierta:** decidir si la validación cruzada se agrupa o se
-  estratifica por origen.
+  confundido con la clase. Validación agrupada por centro: descartada (ver D22).
 
   Los 163 con supervivencia por centro: CBICA 85 (52 %), TCIA02 22, TCIA01 19, TCIA03 12,
   TCIA08 9, TCIA04 7, TCIA06 5, 2013 2 y TCIA05 2. La mediana de supervivencia varía entre
@@ -297,3 +296,68 @@ el resultado usaría información de los folds de prueba y contaminaría la eval
 
 La única excepción es D17 (columnas con varianza cero): no usa la etiqueta y su resultado
 no depende de cómo se dividan los datos.
+
+---
+
+## Folds compartidos (`scripts/folds.py`)
+
+### D22. Una sola partición para los dos objetivos — Tomada
+`particiones/folds.csv` asigna cada paciente a 1 de 5 folds (semilla 42), estratificados
+por grupo: HGG con supervivencia, HGG sin supervivencia y LGG. Cada fold tiene 57
+pacientes, de los cuales 32 o 33 son HGG con supervivencia. Los centros quedan
+repartidos, pero no se estratificó por centro.
+
+**Validación agrupada por centro (dejar un centro fuera cada vez): descartada (2026-10-02).**
+Es inviable: entre los 163 con supervivencia, CBICA tiene 85 (52 %) y los demás centros
+entre 2 y 22. El fold de CBICA se llevaría la mitad de los datos y el resto serían folds
+diminutos, con estimaciones inestables.
+
+**Consecuencia:** la validación mide el desempeño con pacientes nuevos de los mismos
+centros, no la generalización a un hospital distinto. Hay que decirlo así al reportar. Como
+referencia descriptiva (no como validación), se puede comparar el error fuera de fold de
+CBICA frente al del resto.
+
+**Por qué:** en el objetivo 2 la radiómica se calculará sobre máscaras predichas por el
+segmentador. Si un paciente de prueba del pronóstico se usó para entrenar el segmentador,
+su máscara sería demasiado buena y la evaluación quedaría optimista. Con los mismos folds,
+la máscara del paciente del fold k sale de un modelo entrenado con los otros 4.
+
+El archivo se versiona y el script se niega a sobrescribirlo: cambiar los folds invalida
+todo lo que se entrenó con ellos.
+
+---
+
+## Objetivo 1 — Segmentación (`segmentacion/`)
+
+### D23. nnU-Net v2, entrenamiento por regiones — Tomada (prueba)
+`convertir_nnunet.py` genera `nnunet_raw/Dataset501_BraTS2018`, siguiendo el conversor
+oficial de nnU-Net para BraTS:
+- **Imágenes originales**, no `data_normalizada`: nnU-Net hace su propio z-score sobre los
+  voxeles no nulos, el mismo criterio que D2. Las imágenes son enlaces duros, así que no
+  ocupan espacio extra.
+- **Etiquetas** 0/1/2/4 → 0/2/1/3 (edema 1, necrosis 2, realce 3), para que las regiones
+  sean anidadas: WT = {1,2,3}, TC = {2,3} y ET = {3}. Se verificó que los volúmenes de las
+  tres regiones coinciden con el Bloque 4 en los 285 pacientes.
+- `splits_final.json` sale de `particiones/folds.csv` (D22) y reemplaza los folds
+  aleatorios de nnU-Net.
+
+**Hardware:** la máquina local no tiene GPU (D0). Prueba inicial en Colab con
+`segmentacion/prueba_colab.ipynb`: 5 épocas del fold 0 para medir segundos por época y
+VRAM.
+
+**Resultado de la prueba (2026-10-02, Colab gratis, T4 de 15.6 GB):**
+- **463 s por época** (444–492) y **6.7 GB de VRAM** como máximo.
+- Dice en validación del fold 0 tras solo 5 épocas: WT 0.871, TC 0.752, ET 0.639.
+- Tiempo estimado, solo entrenamiento: 100 épocas = 12.9 h por fold (64 h los 5 folds);
+  250 épocas = 32 h por fold (161 h); 1000 épocas = 129 h por fold (643 h).
+
+**Pendiente:** decidir dónde y con cuántas épocas entrenar. La sospecha es que la CPU es
+el cuello de botella (Colab gratis da 2 núcleos para el aumento de datos de nnU-Net);
+falta confirmarlo midiendo el uso de la GPU.
+
+**Visor** (`segmentacion/visor_colab.ipynb`): muestra la resonancia, la segmentación real y
+la predicción de los pacientes de validación, con su Dice, y analiza si el error depende
+del tamaño del tumor. Con un error de borde constante, el error relativo de volumen ya
+crece en los tumores pequeños (comprobado con una simulación), así que ese efecto solo no
+prueba que el modelo sea peor con ellos. Para eso hace falta una métrica en mm (Hausdorff
+95). Pendiente de repetir con el modelo final.
