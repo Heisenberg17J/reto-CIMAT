@@ -661,3 +661,41 @@ artículo salgan de archivos fijos. Las intermedias pesadas (`caracteristicas*.c
   salidas con el mismo sha256.
 - El pronóstico corre con las rutas nuevas.
 
+
+### D30. Modelo final de pronóstico e inferencia de punta a punta — Tomada
+**Modelo final** (`pronostico/entrenar_final.py` → `modelos/pronostico_coxnet.joblib` y `.json`): es el brazo
+tradicional de D27 (Cox Elastic Net, edad sin penalizar, características predichas con el filtro D26),
+ajustado una sola vez con los 163 HGG, igual que dentro de cada fold. El código de ajuste es el mismo que usa
+la validación cruzada (`brazos.ajustar_modelo_coxnet`); tras separarlo como función, el resultado de un fold
+de prueba quedó idéntico.
+
+- Penalización elegida: `alpha` = 0.354. Usa **9 características radiómicas, con coeficientes de como mucho
+  0.037**, frente a 0.418 de la edad (en escala estandarizada): predice casi solo con la edad.
+- El desempeño esperado es el de la validación cruzada (c-index 0.622 ± 0.046), no el aparente en los mismos
+  163 pacientes (0.650, optimista). Así queda escrito en el JSON del modelo.
+- Los cortes de clase son cuantiles del riesgo de entrenamiento, ajustados a las proporciones de clase, igual
+  que en la CV.
+
+**Inferencia** (`inferencia/predecir.py`):
+
+| Paso | Qué hace |
+|---|---|
+| 1 | Valida que las resonancias estén en formato BraTS |
+| 2 | Segmenta con nnU-Net: los 5 modelos de los folds, promediados |
+| 3 | Posprocesa el ET con el umbral de casos nuevos, 500 voxeles (D24) |
+| 4 | Normaliza (z-score) y arma las regiones WT/TC/ET con las mismas funciones del pipeline |
+| 5 | Extrae la radiómica con PyRadiomics y el mismo YAML |
+| 6 | Aplica el modelo final y devuelve volúmenes, riesgo, clase, días estimados y una figura |
+
+- **Sin ET** (tumor sin realce o realce descartado por el posprocesado), el pronóstico se declara "no
+  aplica": el modelo se entrenó solo con HGG con realce.
+- Corre en un entorno aparte, `inferencia` (copia de `radiomica` + PyTorch CPU + nnU-Net 2.8.1, con numpy
+  1.26 fijo), para no tocar el de investigación.
+- **Comprobado con una máscara fuera de fold:**
+  - las 1146 características coinciden con `features.csv` (diferencia 2e-16);
+  - el riesgo coincide con el del modelo aplicado a esa fila;
+  - el caso sin ET devuelve "no aplica".
+- **Esas comprobaciones verifican el flujo, no su exactitud:** los 285 pacientes participaron en el
+  entrenamiento. Para medir la exactitud hacen falta casos externos.
+- Es un **prototipo de investigación, no una herramienta clínica**. El aviso aparece en la salida, en el JSON
+  y en la figura.

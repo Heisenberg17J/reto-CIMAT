@@ -114,34 +114,52 @@ def ajustar_edad(clin_tr, X_tr, dias_tr, clin_te, X_te, semilla):
 # Brazo 2: Cox Elastic Net
 # ---------------------------------------------------------------------------
 
-def ajustar_coxnet(clin_tr, X_tr, dias_tr, clin_te, X_te, semilla):
-    Ztr, Zte = escalar(pd.concat([clin_tr, X_tr], axis=1), pd.concat([clin_te, X_te], axis=1))
-    n_clin = clin_tr.shape[1]
-    pf = np.r_[np.zeros(n_clin), np.ones(X_tr.shape[1])]
+def ajustar_modelo_coxnet(clin, X, dias, semilla):
+    """Ajusta el Cox Elastic Net completo (escalado + alpha por CV interna) con estos datos.
+
+    Lo usan la validacion cruzada (ajustar_coxnet) y el modelo final (entrenar_final.py).
+    Devuelve un dict con escalador, columnas, modelo, alpha, c_interna y seleccion.
+    """
+    Z = pd.concat([clin, X], axis=1)
+    escalador = StandardScaler().fit(Z)
+    A, dias = escalador.transform(Z), np.asarray(dias)
+    n_clin = clin.shape[1]
+    pf = np.r_[np.zeros(n_clin), np.ones(X.shape[1])]
     params = dict(l1_ratio=0.5, penalty_factor=pf, max_iter=100000)
-    A, dias_tr = Ztr.to_numpy(), np.asarray(dias_tr)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         alphas = CoxnetSurvivalAnalysis(n_alphas=30, alpha_min_ratio=0.01, **params) \
-            .fit(A, _surv(dias_tr)).alphas_
+            .fit(A, _surv(dias)).alphas_
+        divisiones = divisiones_internas(dias, semilla)
         puntaje = np.zeros(len(alphas))
-        for tr, va in divisiones_internas(dias_tr, semilla):
-            m = CoxnetSurvivalAnalysis(alphas=alphas, **params).fit(A[tr], _surv(dias_tr[tr]))
-            for j, a in enumerate(alphas):
-                puntaje[j] += cindex(dias_tr[va], m.predict(A[va], alpha=a))
+        for tr, va in divisiones:
+            m = CoxnetSurvivalAnalysis(alphas=alphas, **params).fit(A[tr], _surv(dias[tr]))
+            for k, a in enumerate(alphas):
+                puntaje[k] += cindex(dias[va], m.predict(A[va], alpha=a))
         mejor = int(np.argmax(puntaje))
         # Se ajusta el camino hasta el alpha elegido (arranque en caliente, mas estable)
-        final = CoxnetSurvivalAnalysis(alphas=alphas[:mejor + 1], fit_baseline_model=True, **params) \
-            .fit(A, _surv(dias_tr))
-        a = alphas[mejor]
-        coef = final.coef_[:, -1]
+        modelo = CoxnetSurvivalAnalysis(alphas=alphas[:mejor + 1], fit_baseline_model=True, **params) \
+            .fit(A, _surv(dias))
+    coef = modelo.coef_[:, -1]
+    return dict(escalador=escalador, columnas=list(Z.columns), modelo=modelo, alpha=float(alphas[mejor]),
+                c_interna=float(puntaje[mejor] / len(divisiones)),
+                seleccion=[c for c, w in zip(Z.columns[n_clin:], coef[n_clin:]) if w != 0])
 
-    seleccion = [c for c, w in zip(Ztr.columns[n_clin:], coef[n_clin:]) if w != 0]
-    return dict(riesgo_train=final.predict(A, alpha=a), riesgo_test=final.predict(Zte.to_numpy(), alpha=a),
-                dias_pred_test=mediana_dias(final.predict_survival_function(Zte.to_numpy(), alpha=a)),
-                seleccion=seleccion,
-                extra=dict(alpha=float(a), c_interna=float(puntaje[mejor] / 6)))
+
+def predecir_coxnet(ajuste, clin, X):
+    """Riesgo y mediana de supervivencia (dias) con un ajuste de ajustar_modelo_coxnet."""
+    A = ajuste["escalador"].transform(pd.concat([clin, X], axis=1)[ajuste["columnas"]])
+    m, a = ajuste["modelo"], ajuste["alpha"]
+    return m.predict(A, alpha=a), mediana_dias(m.predict_survival_function(A, alpha=a))
+
+
+def ajustar_coxnet(clin_tr, X_tr, dias_tr, clin_te, X_te, semilla):
+    aj = ajustar_modelo_coxnet(clin_tr, X_tr, dias_tr, semilla)
+    riesgo_tr, _ = predecir_coxnet(aj, clin_tr, X_tr)
+    riesgo_te, dias_te = predecir_coxnet(aj, clin_te, X_te)
+    return dict(riesgo_train=riesgo_tr, riesgo_test=riesgo_te, dias_pred_test=dias_te,
+                seleccion=aj["seleccion"], extra=dict(alpha=aj["alpha"], c_interna=aj["c_interna"]))
 
 
 # ---------------------------------------------------------------------------

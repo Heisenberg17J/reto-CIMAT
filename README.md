@@ -117,6 +117,14 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 
 **Resultado (c-index fuera de fold):** edad 0.624, Elastic Net 0.622 y genético 0.605, sin diferencias significativas. El genético promete 0.70 en su aptitud interna (brecha de +0.09) y su selección es casi aleatoria entre folds (Nogueira 0.05).
 
+## Parte 4 · Inferencia de punta a punta (`inferencia/`)
+
+Prototipo de investigación, **no clínico**:
+- `python pronostico/entrenar_final.py` guarda el modelo final de pronóstico en `modelos/` (D30).
+- `python inferencia/predecir.py --caso CARPETA --edad 62` segmenta un paciente nuevo con nnU-Net, extrae su radiómica y devuelve volúmenes, clase de supervivencia, días estimados y una figura.
+
+Requiere el entorno `inferencia` y los pesos de nnU-Net; ver [inferencia/README.md](inferencia/README.md).
+
 ## Decisiones abiertas
 
 Ninguna. D10 (solo imagen original) y D11 (ET vacío) quedaron cerradas el 2026-10-06.
@@ -128,13 +136,15 @@ Bakas S. et al. *Identifying the Best Machine Learning Algorithms for Brain Tumo
 ## Estructura
 
 ```
-README.md, DECISIONES.md        qué se hizo y por qué (D0–D29)
+README.md, DECISIONES.md        qué se hizo y por qué (D0–D30)
 requirements.txt, crear_env.sh  entorno "radiomica"
 config/                         parámetros de PyRadiomics
 docs/                           documentos de apoyo al diseño del pronóstico y ejercicios iniciales
 radiomica/                      bloques 1–7, variante manual/predicha y folds
 segmentacion/                   nnU-Net: conversión, notebooks de Colab, posprocesado y métricas
-pronostico/                     robustez, modelos (edad, Elastic Net, genético) y notebook de análisis
+pronostico/                     robustez, modelos (edad, Elastic Net, genético), modelo final y notebook de análisis
+inferencia/                     segmentación + pronóstico de un paciente nuevo (prototipo)
+modelos/                        modelo final de pronóstico (versionado; los pesos de nnU-Net van en datos/)
 particiones/                    folds.csv (D22) y folds_pronostico.csv (5 × 10, D27)
 resultados/                     tablas finales, versionadas
   radiomica/manual|pred/          features.csv + README de procedencia

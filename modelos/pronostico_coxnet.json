@@ -1,0 +1,44 @@
+{
+  "descripcion": "Cox Elastic Net (l1_ratio 0.5), edad sin penalizar + radiomica de mascaras predichas con filtro D26. Para HGG; no aplica a tumores sin realce (ET).",
+  "fecha": "2026-10-06T15:06:37",
+  "cohorte": "variante=pred | filtro D26=si | reseccion=no | 163 pacientes | 935 caracteristicas + 1 clinicas",
+  "alpha": 0.35417771647438673,
+  "c_interna_cv": 0.6307,
+  "n_caracteristicas_entrada": 936,
+  "coeficientes_no_cero (escala estandarizada)": {
+    "edad": 0.41752981940464046,
+    "t2_WT_glcm_ClusterShade": -0.004169985594782864,
+    "flair_WT_glcm_MCC": -0.02764166761834849,
+    "mask_TC_shape_SurfaceArea": 0.03678185006705215,
+    "t2_TC_glcm_Idmn": 0.00860479427071664,
+    "t2_TC_glcm_Idn": 0.017180731620430684,
+    "flair_TC_gldm_LargeDependenceLowGrayLevelEmphasis": -0.009343775519291733,
+    "mask_ET_shape_SurfaceArea": 0.010258165696357808,
+    "t2_ET_firstorder_90Percentile": -0.025950771947000864,
+    "t2_ET_ngtdm_Contrast": -0.007153453120128323
+  },
+  "cortes_de_clase": {
+    "corta_si_riesgo_>=": 0.14628211133963137,
+    "media_si_riesgo_>=": -0.18119842729759875
+  },
+  "clases": {
+    "0": "corta (< 300 dias)",
+    "1": "media (300-450 dias)",
+    "2": "larga (> 450 dias)"
+  },
+  "desempeno_esperado_cv_5x10 (D27)": {
+    "edad": {
+      "cindex": "0.624 +/- 0.046",
+      "exactitud_3_clases": "0.454 +/- 0.071"
+    },
+    "coxnet": {
+      "cindex": "0.622 +/- 0.046",
+      "exactitud_3_clases": "0.477 +/- 0.072"
+    }
+  },
+  "versiones": {
+    "scikit-survival": "0.23.1",
+    "scikit-learn": "1.5.2",
+    "numpy": "1.26.4"
+  }
+}
