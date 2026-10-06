@@ -123,7 +123,7 @@ Prototipo de investigación, **no clínico**:
 - `python pronostico/entrenar_final.py` guarda el modelo final de pronóstico en `modelos/` (D30).
 - `python inferencia/predecir.py --caso CARPETA --edad 62` segmenta un paciente nuevo con nnU-Net, extrae su radiómica y devuelve volúmenes, clase de supervivencia, días estimados y una figura.
 
-Requiere el entorno `inferencia` y los pesos de nnU-Net; ver [inferencia/README.md](inferencia/README.md).
+Forma recomendada: segmentar en Colab con `inferencia/segmentar_colab.ipynb` (GPU, pesos ya en Drive) y correr `predecir.py --segmentacion` en local. Ver [inferencia/README.md](inferencia/README.md).
 
 ## Decisiones abiertas
 

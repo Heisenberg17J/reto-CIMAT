@@ -14,6 +14,22 @@
  → volúmenes, riesgo, clase de supervivencia (corta / media / larga) y días estimados
 ```
 
+## Forma recomendada: segmentar en Colab y lo demás en local
+
+| Paso | Dónde | Cómo |
+|---|---|---|
+| Segmentación (nnU-Net, 5 folds con TTA) + posprocesado de ET | Colab con GPU | `inferencia/segmentar_colab.ipynb`: lee las resonancias de `MyDrive/reto_cimat/casos/<caso>/` y guarda ahí `segmentacion.nii.gz` |
+| Radiómica + pronóstico | Local | `python inferencia/predecir.py --caso CARPETA --edad 62 --segmentacion segmentacion.nii.gz` |
+
+Así nnU-Net usa la GPU y los pesos que ya están en Drive, sin descargarlos, y la radiómica corre en el entorno validado.
+PyRadiomics no se instala en Colab a propósito: con otras versiones de numpy podría dar características distintas
+sin que nada avise. Con `--segmentacion` basta el entorno `radiomica`; PyTorch no hace falta.
+
+El notebook aplica las mismas reglas que `predecir.py`. Se comprobó con predicciones reales de nnU-Net que encuentra
+los mismos archivos y que el posprocesado da máscaras idénticas, tanto si descarta el ET como si lo conserva.
+
+Los pasos 1 y 2 de abajo solo hacen falta para correr **todo** localmente, también nnU-Net.
+
 ## 1. Entorno `inferencia`
 
 Es una copia del entorno `radiomica` más PyTorch (CPU) y nnU-Net. numpy queda fijo en 1.26, que PyRadiomics necesita:
