@@ -486,3 +486,33 @@ con las mismas columnas, en el mismo orden, y los mismos pacientes que la tabla 
   supervivencia no tienen ningún NaN.**
 - Siguiente paso (fase B): medir, característica por característica, cuánto cambia entre
   la máscara manual y la predicha en esos 163 pacientes.
+
+### D26. Robustez de la radiómica frente a la segmentación — Tomada
+`pronostico/robustez_segmentacion.py` compara cada característica calculada con la máscara
+manual y con la predicha, en los 163 HGG con supervivencia. Usa el CCC de Lin (acuerdo en
+valor absoluto) y el Spearman (se conserva el orden de los pacientes). Resultado en
+`resultados/robustez_segmentacion.csv`.
+
+Resultado (2026-10-06):
+- **CCC ≥ 0.85 en 805 de 1146 (70 %)**, con una mediana de 0.923. WT y TC son robustas
+  (78–79 %); ET mucho menos (54 %), sobre todo las texturas glszm, glrlm y gldm (39–46 %).
+- **Las máscaras de nnU-Net tienen bordes más suaves que las manuales.** El volumen casi no
+  cambia (MeshVolume −2 % en WT), pero el área de superficie baja un 20 % y la esfericidad
+  sube un 23 %. Por eso la forma tiene el CCC más bajo por región (0.84 en WT), aunque el
+  volumen sea de las características más estables (0.97).
+- **170 características fallan el CCC pero conservan el orden de los pacientes**
+  (Spearman ≥ 0.85): es un desplazamiento sistemático, no ruido. Ejemplo:
+  `t1ce_ET_glszm_ZoneVariance`, con CCC 0.08 y Spearman 0.92 (sale 3.8 veces mayor en la
+  máscara predicha). **171 fallan las dos medidas:** esas sí dependen del contorno.
+
+**Consecuencias para el modelo:**
+1. **Entrenar y evaluar siempre con la misma variante** (la predicha, D25). Un modelo
+   entrenado con características manuales no se puede aplicar a las predichas: los
+   desplazamientos sistemáticos lo descalibran.
+2. Como el modelo se entrena y evalúa con la variante predicha, un desplazamiento
+   sistemático no le hace daño; lo que importa es que se conserve el orden de los
+   pacientes. El filtro de robustez candidato es **Spearman ≥ 0.85 (935 características)**,
+   no el CCC. Quita las 211 cuyo orden de pacientes depende del contorno.
+3. El filtro no usa la supervivencia, así que se puede aplicar antes de la validación
+   cruzada sin filtrar información del objetivo (como D17). Se evaluará con y sin él en la
+   fase E.

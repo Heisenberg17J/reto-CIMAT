@@ -19,7 +19,8 @@ El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aqu
 | Segmentación: conversión a nnU-Net y prueba de 5 épocas en Colab | Terminada |
 | Segmentación: 5 folds (100 épocas) + posprocesado de ET | Terminada: Dice fuera de fold WT 0.907, TC 0.842, ET 0.769 (D24) |
 | Pronóstico: radiómica sobre máscaras predichas | Terminada: `resultados/pred/features.csv`, 285 × 1146, sin NaN en los 163 HGG con supervivencia (D25) |
-| Pronóstico: robustez y modelo | **Siguiente** |
+| Pronóstico: robustez frente a la segmentación | Terminada: 70 % con CCC ≥ 0.85, 82 % conservan el orden (D26) |
+| Pronóstico: modelo | **Siguiente** |
 
 ## Datos
 
@@ -112,11 +113,12 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 ## Estructura
 
 ```
-DECISIONES.md              por qué se hizo cada cosa (D0–D25)
+DECISIONES.md              por qué se hizo cada cosa (D0–D26)
 params_brats2018_v0.yaml   parámetros de PyRadiomics
 crear_env.sh, requirements.txt
 scripts/                   radiómica (bloques 1–7) y folds
 segmentacion/              conversión a nnU-Net, notebooks de Colab y posprocesado de ET
+pronostico/                objetivo 2: robustez de la radiómica y (próximamente) el modelo
 particiones/folds.csv      partición compartida (versionada)
 predicciones_oof/          predicciones de nnU-Net por fold, descargadas de Drive (fuera de git)
 segmentaciones_pred/       máscaras finales fuera de fold, etiquetas BraTS (fuera de git)
