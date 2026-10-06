@@ -516,3 +516,88 @@ Resultado (2026-10-06):
 3. El filtro no usa la supervivencia, así que se puede aplicar antes de la validación
    cruzada sin filtrar información del objetivo (como D17). Se evaluará con y sin él en la
    fase E.
+
+### D27. Diseño de la comparación: genético frente a Elastic Net — Tomada
+Se basa en `RESPUESTAS_PRONOSTICO.md` y `DECISIONS_RECOMMENDATIONS.md` (R2–R5, R12), dos
+documentos externos con simulaciones de tamaño n = 163 y p = 1146. Sus supuestos
+coinciden con los datos reales: clases 40/26/34 % (supuesto 40/25/35) y c-index aparente
+de la edad 0.625 (supuesto ~0.62).
+
+| Tema | Decisión |
+|---|---|
+| Cohorte | 163 HGG con supervivencia, todos con evento (sin censura) |
+| Entrada | Edad (sin penalizar) + características predichas (D25) con el filtro D26 (935) |
+| Objetivo del modelo | Riesgo de Cox entrenado sobre los días |
+| Métrica principal | c-index de Harrell |
+| Métricas secundarias | Exactitud en 3 clases (< 300, 300–450 y > 450 días; las clases salen de cuantiles del riesgo en el entrenamiento, ajustados a sus proporciones), ρ de Spearman y MSE con la mediana de supervivencia predicha. **CHECK:** confirmar los cortes con el artículo de BraTS 2018 |
+| Validación | Anidada. Externa: 5 folds × 10 repeticiones (`particiones/folds_pronostico.csv`; la repetición 0 son los folds de D22 y las demás se estratifican por tercil de supervivencia). Interna: 3 folds × 2 repeticiones |
+| Brazo 1 | Edad sola (Cox) |
+| Brazo 2 | Cox Elastic Net (`l1_ratio` 0.5, camino de 30 penalizaciones, `alpha` por c-index interno) |
+| Brazo 3 | Genético (DEAP 1.4.4) + Cox ridge, con las medidas de R5 (ver abajo) |
+| Comparación | Diferencias pareadas por fold, con la t corregida de Nadeau-Bengio (corrige el solapamiento entre entrenamientos), y estabilidad de la selección (Jaccard y Nogueira) |
+| Secundarios | Máscaras manuales, sin filtro D26, y con resección |
+
+**Medidas de R5 para el genético:**
+- Espacio de búsqueda reducido a un representante por grupo de |ρ| > 0.9, ajustado en el
+  entrenamiento, sin usar la supervivencia: unos 270 representantes.
+- Máximo de 10 características por subconjunto.
+- Aptitud: c-index interno de un Cox ridge (`alpha` = 1) menos 0.002·k.
+- Población de 40, 30 generaciones, torneo de 3, cruce uniforme, mutación 1/p y elitismo 2.
+- Se reportan la brecha entre la aptitud interna y el c-index externo, k y el subconjunto.
+
+**Diferencias con las recomendaciones externas:**
+- **Folds externos:** se repiten (R3), aunque D22 los fijaba. Repartir no filtra
+  información: la máscara de cada paciente sigue saliendo de un segmentador que no lo vio,
+  y el segmentador nunca vio la supervivencia.
+- **Resección (R2):** queda fuera del análisis principal, porque identifica al centro (D21).
+  Entra solo como análisis secundario.
+- **R9 (intersectar las máscaras con el cerebro):** no se adopta. Ya se decidió en D1: el
+  efecto es como máximo el 0.34 % de una región en los HGG con supervivencia.
+
+**Controles hechos antes de la corrida completa:**
+- La función de c-index reproduce el cálculo a mano (0.625).
+- Las particiones cumplen 163 × 10, con cada paciente en prueba una vez por repetición.
+- Con la misma semilla, los resultados son idénticos.
+- **Supervivencia barajada:** Elastic Net 0.525 y genético 0.527. La edad da 0.546, pero
+  coincide con la asociación casual de esa permutación (c aparente 0.450): no hay fuga.
+
+Código: `pronostico/{datos,metricas,brazos,evaluar}.py`. Entorno: `scikit-survival` 0.23.1,
+la última versión compatible con scikit-learn 1.5.2 y numpy 1.26 (sin fijarla, pip sube
+numpy a 2.x), y `deap` 1.4.4.
+
+**Resultados (2026-10-06; 50 folds externos por análisis, ~14 min cada uno en 10 núcleos):**
+
+| Análisis | Edad sola | Cox Elastic Net | Genético + Cox | Genético − Elastic Net (p corregido) |
+|---|---|---|---|---|
+| **Principal**: predichas + D26 | **0.624** | 0.622 | 0.605 | −0.017 (0.50) |
+| Máscaras manuales + D26 | 0.624 | 0.628 | 0.602 | −0.027 (0.33) |
+| Predichas sin filtro (1146) | 0.624 | 0.628 | 0.608 | −0.020 (0.38) |
+| Predichas + resección | 0.618* | 0.617 | 0.596 | −0.021 (0.32) |
+
+(c-index medio fuera de fold. *En el análisis con resección, el brazo "edad" es edad + resección.)
+
+En el análisis principal:
+- **Exactitud en 3 clases** (azar 0.345): edad 0.454, Elastic Net 0.477 y genético 0.440.
+- **ρ de Spearman:** 0.358, 0.352 y 0.300.
+- **Raíz del MSE:** 333, 336 y 354 días.
+- **Elastic Net − edad:** −0.002 (p = 0.82). Ninguna diferencia entre brazos es significativa.
+
+**Conclusiones:**
+1. **Con 163 pacientes, la radiómica no supera a la edad.** Elastic Net se mantiene prácticamente
+   igual a la edad en los cuatro análisis (entre −0.002 y +0.004); cuando la radiómica no aporta,
+   no se hunde. Coincide con la literatura de BraTS y con las simulaciones de R4.
+2. **El genético no selecciona mejor que la penalización estándar.** Queda entre 0.016 y 0.027
+   por debajo de Elastic Net en los cuatro análisis, sin significación.
+3. **El genético sobreajusta su propia aptitud.** Su c-index interno (~0.70) supera al externo en
+   **+0.09** en todos los análisis, aunque el espacio de búsqueda ya estaba reducido (R5). Su
+   aptitud sigue subiendo durante las 30 generaciones mientras el desempeño real no cambia.
+4. **Selección inestable.** El índice de Nogueira del genético es ~0.05 (casi al azar), frente a
+   0.18–0.26 de Elastic Net. La característica más elegida por Elastic Net aparece en 25 de 50
+   folds (`flair_TC_gldm_LargeDependenceLowGrayLevelEmphasis`); la del genético, en 12.
+5. **El error de segmentación casi no cuesta nada:** máscaras manuales 0.628 frente a predichas
+   0.622 con Elastic Net. **El filtro D26 tampoco cambia el resultado** (0.628 sin él).
+6. **La resección no aporta** (0.618 frente a 0.624 de la edad sola), además de estar confundida
+   con el centro (D21).
+
+Resultados en `resultados/pronostico/<análisis>/` y gráficos en `pronostico/analisis.ipynb`.
+El control con la supervivencia barajada está en `resultados/pronostico/prueba_permutada/`.

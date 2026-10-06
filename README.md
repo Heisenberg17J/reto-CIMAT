@@ -20,7 +20,7 @@ El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aqu
 | Segmentación: 5 folds (100 épocas) + posprocesado de ET | Terminada: Dice fuera de fold WT 0.907, TC 0.842, ET 0.769 (D24) |
 | Pronóstico: radiómica sobre máscaras predichas | Terminada: `resultados/pred/features.csv`, 285 × 1146, sin NaN en los 163 HGG con supervivencia (D25) |
 | Pronóstico: robustez frente a la segmentación | Terminada: 70 % con CCC ≥ 0.85, 82 % conservan el orden (D26) |
-| Pronóstico: modelo | **Siguiente** |
+| Pronóstico: genético frente a Elastic Net (5 × 10 folds) | Terminada: edad 0.624, Elastic Net 0.622, genético 0.605 (c-index); la radiómica no supera a la edad y el genético sobreajusta (+0.09) (D27) |
 
 ## Datos
 
@@ -105,6 +105,19 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 
 **Siguiente paso:** volver a correr la radiómica (bloques 4–7) sobre `segmentaciones_pred/` para el objetivo 2.
 
+## Parte 3 · Pronóstico (`pronostico/`)
+
+1. **Robustez** frente a la segmentación: `python pronostico/robustez_segmentacion.py` (D26).
+2. **Comparación** de edad sola, Cox Elastic Net y genético + Cox con validación cruzada anidada de 5 × 10 folds, unos 14 minutos en CPU (D27):
+   ```
+   python pronostico/evaluar.py                      # principal: máscaras predichas + filtro D26
+   python pronostico/evaluar.py --variante manual    # secundarios: --sin-filtro, --reseccion
+   python pronostico/evaluar.py --permutar           # control: supervivencia barajada
+   ```
+3. **Análisis:** `pronostico/analisis.ipynb`, con el kernel `radiomica`, local.
+
+**Resultado (c-index fuera de fold):** edad 0.624, Elastic Net 0.622 y genético 0.605, sin diferencias significativas. El genético promete 0.70 en su aptitud interna (brecha de +0.09) y su selección es casi aleatoria entre folds (Nogueira 0.05).
+
 ## Decisiones abiertas
 
 - **D10:** si se agregan filtros LoG o Wavelet, lo que obligaría a re-extraer.
@@ -113,12 +126,13 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 ## Estructura
 
 ```
-DECISIONES.md              por qué se hizo cada cosa (D0–D26)
+DECISIONES.md              por qué se hizo cada cosa (D0–D27)
 params_brats2018_v0.yaml   parámetros de PyRadiomics
 crear_env.sh, requirements.txt
 scripts/                   radiómica (bloques 1–7) y folds
 segmentacion/              conversión a nnU-Net, notebooks de Colab y posprocesado de ET
-pronostico/                objetivo 2: robustez de la radiómica y (próximamente) el modelo
+pronostico/                objetivo 2: robustez, modelos (edad, Elastic Net, genético) y notebook de análisis
+particiones/folds_pronostico.csv   5 × 10 folds externos del pronóstico (versionado)
 particiones/folds.csv      partición compartida (versionada)
 predicciones_oof/          predicciones de nnU-Net por fold, descargadas de Drive (fuera de git)
 segmentaciones_pred/       máscaras finales fuera de fold, etiquetas BraTS (fuera de git)

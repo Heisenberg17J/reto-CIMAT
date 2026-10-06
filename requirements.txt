@@ -31,6 +31,12 @@ matplotlib==3.9.2
 seaborn==0.13.2
 tqdm==4.67.1
 
+# Pronostico (objetivo 2): Cox / Elastic Net y algoritmo genetico.
+# scikit-survival 0.23.1 es la ultima compatible con scikit-learn 1.5.2 y numpy 1.26;
+# sin fijarla, pip sube numpy a 2.x y rompe pyradiomics.
+scikit-survival==0.23.1
+deap==1.4.4
+
 # Entorno de trabajo
 jupyterlab==4.6.4
 ipykernel==7.3.0
