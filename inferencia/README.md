@@ -84,6 +84,11 @@ python inferencia/predecir.py --caso CARPETA --edad 62
 - `resultado.json`;
 - `vista.png`.
 
+**Sin edad** (`--edad` es opcional), el script entrega la segmentación, los volúmenes y la radiómica, pero el pronóstico
+queda como "no aplica". La edad lleva casi toda la señal del modelo, y rellenarla con la media de la cohorte solo
+devolvería el promedio. Como referencia, el JSON muestra cómo cambiaría el resultado con 40, 50, 60, 70 y 80 años,
+marcado expresamente como **no** predicción.
+
 El pronóstico solo se calcula si el tumor tiene realce (ET), como todos los HGG con los que se entrenó el modelo. Si no lo
 tiene, el script lo dice y no inventa un resultado.
 

@@ -29,6 +29,7 @@ Salida en --salida:
 Uso (desde la raiz del repo):
     python inferencia/predecir.py --caso CARPETA --edad 62
     python inferencia/predecir.py --caso CARPETA --edad 62 --segmentacion mascara.nii.gz
+    python inferencia/predecir.py --caso CARPETA --segmentacion mascara.nii.gz   # sin edad: sin pronostico
 """
 
 import os
@@ -201,6 +202,11 @@ def extraer_caracteristicas(rutas, seg_brats, img_ref, trabajo, log):
 # 4. Pronostico
 # ---------------------------------------------------------------------------
 
+def clase_desde_riesgo(modelo, riesgo):
+    c = modelo["cortes"]
+    return 0 if riesgo >= c["corta_si_riesgo_>="] else (1 if riesgo >= c["media_si_riesgo_>="] else 2)
+
+
 def pronosticar(caract, edad, estados):
     modelo = joblib.load(MODELO_PRONOSTICO)
     faltan = [c for c in modelo["columnas_radiomicas"] if not np.isfinite(caract.get(c, np.nan))]
@@ -211,10 +217,20 @@ def pronosticar(caract, edad, estados):
                           f"con realce (ET), y no se puede aplicar sin el. Un ET vacio puede indicar un tumor "
                           f"de bajo grado, o un realce pequeno que el posprocesado descarto (D24)."}
     X = pd.DataFrame([{c: caract[c] for c in modelo["columnas_radiomicas"]}])
+    if edad is None:
+        # Sin edad no se predice: la edad lleva casi toda la senal (D30) e imputarla seria dar el promedio.
+        # Se muestra, solo como referencia, como cambiaria el resultado segun la edad.
+        ref = {}
+        for e_ in (40, 50, 60, 70, 80):
+            r_, d_ = b.predecir_coxnet(modelo, pd.DataFrame([{"edad": float(e_)}]), X)
+            ref[str(e_)] = f"{CLASES[clase_desde_riesgo(modelo, r_[0])]}, ~{d_[0]:.0f} dias"
+        return {"aplica": False,
+                "motivo": "falta la edad. El modelo depende casi por completo de ella (D30) y no se imputa: "
+                          "con la edad media, el resultado seria solo el promedio de la cohorte.",
+                "solo_referencia_segun_edad (NO es una prediccion)": ref}
     clin = pd.DataFrame([{"edad": float(edad)}])
     riesgo, dias = b.predecir_coxnet(modelo, clin, X)
-    cort = modelo["cortes"]
-    clase = 0 if riesgo[0] >= cort["corta_si_riesgo_>="] else (1 if riesgo[0] >= cort["media_si_riesgo_>="] else 2)
+    clase = clase_desde_riesgo(modelo, riesgo[0])
     return {"aplica": True, "riesgo": float(riesgo[0]), "clase": CLASES[clase],
             "dias_mediana_estimada": float(dias[0]),
             "desempeno_esperado": modelo["meta"]["desempeno_esperado_cv_5x10 (D27)"]}
@@ -260,7 +276,7 @@ def vista(rutas, seg, destino, titulo):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--caso", required=True, type=Path, help="carpeta con t1, t1ce, t2 y flair")
-    ap.add_argument("--edad", required=True, type=float)
+    ap.add_argument("--edad", type=float, help="edad en anos; sin ella no hay pronostico (el modelo depende de ella)")
     ap.add_argument("--segmentacion", type=Path, help="mascara ya hecha (BraTS 0/1/2/4): omite nnU-Net")
     ap.add_argument("--folds", type=int, nargs="+", default=[0, 1, 2, 3, 4])
     ap.add_argument("--tta", action="store_true", help="aumento en prueba (espejos): mejor y ~8x mas lento")
@@ -327,6 +343,8 @@ def main():
         log.info(f"desempeno esperado del modelo (CV): {pron['desempeno_esperado']}")
     else:
         log.info(f"pronostico: no aplica. {pron['motivo']}")
+        for e_, txt in pron.get("solo_referencia_segun_edad (NO es una prediccion)", {}).items():
+            log.info(f"   referencia, si tuviera {e_} anos: {txt}")
     log.info(f"\nsalida: {salida}/  (segmentacion.nii.gz, caracteristicas.csv, resultado.json, vista.png)")
 
 
