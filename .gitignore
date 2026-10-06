@@ -18,3 +18,7 @@ resultados/**/diagnosticos.csv
 
 # Salidas de inferencia/predecir.py
 resultados_inferencia/
+
+# Ninguna imagen medica va al repositorio
+*.nii
+*.nii.gz

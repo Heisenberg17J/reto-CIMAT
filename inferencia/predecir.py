@@ -75,13 +75,20 @@ AVISO = ("PROTOTIPO DE INVESTIGACION. No es una herramienta clinica ni sustituye
 # ---------------------------------------------------------------------------
 
 def buscar_modalidades(carpeta):
-    """Acepta t1.nii.gz o <id>_t1.nii.gz (ojo: t1 no debe confundirse con t1ce)."""
+    """Acepta t1.nii.gz o <id>_t1.nii.gz (ojo: t1 no debe confundirse con t1ce).
+    Busca tambien un nivel mas abajo, como en segmentar_colab.ipynb."""
+    if not carpeta.is_dir():
+        raise SystemExit(f"--caso {carpeta} no existe o no es una carpeta. Debe ser la carpeta con las 4 "
+                         f"resonancias del paciente (t1, t1ce, t2 y flair).")
+    archivos = list(carpeta.glob("*.nii*")) + list(carpeta.glob("*/*.nii*"))
     rutas = {}
     for mod in MODALIDADES:
-        candidatos = [f for f in carpeta.glob("*.nii*")
+        candidatos = [f for f in archivos
                       if f.name.split(".")[0] == mod or f.name.split(".")[0].endswith(f"_{mod}")]
         if len(candidatos) != 1:
-            raise SystemExit(f"en {carpeta} hay {len(candidatos)} archivos para '{mod}' (se espera 1)")
+            vistos = [str(f.relative_to(carpeta)) for f in archivos] or "ninguno"
+            raise SystemExit(f"en {carpeta} hay {len(candidatos)} archivos para '{mod}' (se espera 1). "
+                             f"Archivos .nii encontrados: {vistos}. Deben llamarse {mod}.nii.gz o <id>_{mod}.nii.gz")
         rutas[mod] = candidatos[0]
     return rutas
 
@@ -264,7 +271,6 @@ def main():
     seg_ext = args.segmentacion.resolve() if args.segmentacion else None
     salida = (args.salida or Path("resultados_inferencia") / caso.name).resolve()
     os.chdir(RAIZ)
-    salida.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     log = logging.getLogger("inferencia")
@@ -275,6 +281,9 @@ def main():
     log.info(AVISO + "\n")
 
     rutas = buscar_modalidades(caso)
+    if seg_ext and not seg_ext.is_file():
+        raise SystemExit(f"--segmentacion {seg_ext} no existe")
+    salida.mkdir(parents=True, exist_ok=True)
     avisos = validar_formato(rutas)
     for a in avisos:
         log.warning(f"AVISO de formato: {a}")
