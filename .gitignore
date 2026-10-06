@@ -8,3 +8,5 @@ __pycache__/
 data_normalizada/
 resultados/variante_b/imagenes/
 nnunet_raw/
+predicciones_oof/
+segmentaciones_pred/

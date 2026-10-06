@@ -17,7 +17,7 @@ El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aqu
 | Radiómica: `features.csv`, 285 × 1146, con control de calidad | Terminada |
 | Folds compartidos (5 × 57 pacientes) | Terminada |
 | Segmentación: conversión a nnU-Net y prueba de 5 épocas en Colab | Terminada |
-| Segmentación: entrenamiento real de los 5 folds | **Pendiente**: definir hardware y número de épocas |
+| Segmentación: 5 folds (100 épocas) + posprocesado de ET | Terminada: Dice fuera de fold WT 0.907, TC 0.842, ET 0.769 (D24) |
 | Pronóstico | **Pendiente**: empieza cuando haya máscaras fuera de fold |
 
 ## Datos
@@ -89,7 +89,9 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
    Genera `nnunet_raw/Dataset501_BraTS2018.zip` (2.3 GB, fuera de git).
 2. **Subir** el zip a Google Drive, en `MyDrive/reto_cimat/`.
 3. **Probar** con `segmentacion/prueba_colab.ipynb`: preprocesa y entrena 5 épocas del fold 0 en una GPU T4.
-4. **Ver predicciones** con `segmentacion/visor_colab.ipynb`: visor corte por corte (real frente a predicción), Dice por paciente y análisis del error según el tamaño del tumor.
+4. **Entrenar** con `segmentacion/entrenar_colab.ipynb`: 100 épocas por fold, checkpoint cada 5 y reanudación automática. Se ejecuta completo en cada sesión de Colab hasta que el resumen diga que terminó.
+5. **Posprocesar** las 285 predicciones fuera de fold (carpeta `predicciones_oof/`, descargada de Drive): `python segmentacion/postproceso_et.py` elige con validación anidada el umbral para descartar ET pequeño y escribe las máscaras finales en `segmentaciones_pred/` (D24).
+6. **Ver predicciones** con `segmentacion/visor_colab.ipynb`: visor corte por corte (real frente a predicción), Dice por paciente y análisis del error según el tamaño del tumor.
 
 **Resultado de la prueba (T4, fold 0):** 463 s por época y 6.7 GB de VRAM. Tras solo 5 épocas, el Dice es WT 0.871, TC 0.752 y ET 0.639. El entrenamiento real de 100 épocas por fold tardaría unas 64 h en Colab gratis; probablemente lo limita la CPU (D23).
 

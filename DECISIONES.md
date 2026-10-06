@@ -355,9 +355,97 @@ VRAM.
 el cuello de botella (Colab gratis da 2 núcleos para el aumento de datos de nnU-Net);
 falta confirmarlo midiendo el uso de la GPU.
 
+**Entrenamiento real del fold 0 (2026-10-05):** 100 épocas (unas 13 h en una T4) con
+`segmentacion/entrenar_colab.ipynb`:
+- **Entrenador `nnUNetTrainer_100epochs_ckpt5`:** hereda de `nnUNetTrainer_100epochs` y solo
+  guarda `checkpoint_latest` cada 5 épocas en vez de cada 50. Si se corta la sesión se
+  pierden como mucho ~40 min, no ~6 h. No redefine `__init__`, porque nnU-Net guarda los
+  argumentos del constructor en el checkpoint.
+- **Reanudación:** siempre con `--c`, que retoma o empieza de cero; si ya terminó, solo valida.
+- **Preprocesado:** se guarda en Drive como `.tar` si cabe, para no repetir 30–60 min por sesión.
+- **Sin `--npz`:** las probabilidades ocuparían GB en Drive y solo sirven para ensamblar
+  configuraciones.
+- **Uso de la GPU:** se registra cada minuto, para confirmar o descartar el cuello de botella
+  de CPU.
+- **Hardware:** el plan de Google AI del equipo da acceso a A100, L4 y G4 con RAM amplia.
+  Se usa **A100 con RAM amplia** (estimado ~3 h por fold, frente a 13 h en la T4); la RAM
+  amplia aporta más núcleos de CPU, el probable cuello de botella. El notebook libera la
+  GPU al terminar para no gastar unidades de cómputo. Las TPU no sirven: nnU-Net requiere CUDA.
+Con 100 épocas el plan de aprendizaje (poly LR) se ajusta a 100, así que no equivale a
+cortar en la época 100 un entrenamiento de 1000.
+
+**Resultado del fold 0, 100 épocas (2026-10-05, A100 con RAM amplia):**
+- **64 s por época** (1.8 h por fold), con una mediana de uso de GPU de 52 %: la CPU todavía
+  la frena un poco.
+- **Dice en validación (57 pacientes): WT 0.903 y TC 0.829, que superan la meta, y ET 0.728,
+  un poco por debajo de 0.75.**
+- El pseudo-Dice de ET al final del entrenamiento fue 0.869. Hipótesis: el ET falso en los
+  LGG sin realce cuenta como Dice 0 y baja el promedio. Se revisa con el análisis 6b del
+  visor.
+- **Posprocesado candidato:** descartar el ET predicho por debajo de un umbral de voxeles,
+  como es estándar en BraTS. **El umbral se elige con las predicciones fuera de fold de los
+  5 folds**, no mirando un solo fold.
+- **Épocas: 100 en los 5 folds (decidido 2026-10-05, con la curva del fold 0).** El
+  pseudo-Dice medio se estabiliza hacia la época 70 en ~0.868, y las últimas 30 épocas no
+  aportan. Las pérdidas de entrenamiento y validación bajan juntas, con una separación
+  pequeña y estable: no hay sobreajuste. Bajar a 75 épocas obligaría a volver a entrenar el
+  fold 0 para que los 5 sean comparables, a cambio de unos 30 min por fold: no compensa.
+- **Folds 1 a 4:** con `FOLDS = [1, 2, 3, 4]` el notebook los entrena uno tras otro (unas
+  7.5 h en la A100), salta los terminados y libera la GPU cuando terminan todos.
+
+**Resultado de los 5 folds, 100 épocas (2026-10-06, A100):**
+
+| Fold | Dice WT | Dice TC | Dice ET | Pacientes sin ET real |
+|---|---|---|---|---|
+| 0 | 0.903 | 0.829 | 0.728 | 7 |
+| 1 | 0.909 | 0.857 | 0.740 | 6 |
+| 2 | 0.914 | 0.838 | 0.826 | 1 |
+| 3 | 0.905 | 0.846 | 0.666 | 8 |
+| 4 | 0.906 | 0.840 | 0.716 | 5 |
+| **Media** | **0.907** | **0.842** | **0.735** | 27 |
+
+- WT y TC son estables entre folds y superan la meta. ET varía mucho (0.666 a 0.826) y sigue
+  al número de pacientes sin ET real de cada fold: el fold 2, con 1, tiene el mejor; el 3,
+  con 8, el peor. Son 5 puntos (ρ = −0.7, no significativo), pero es consistente con que el
+  ET falso en LGG sin realce baja el promedio. Los folds se estratificaron por grupo, no por
+  ET vacío, y por eso esos casos quedaron repartidos de forma desigual (de 1 a 8).
+- Algunos folds registran más de 100 épocas (102–108): la sesión se cortó y retomó, y las
+  épocas posteriores al último checkpoint se repitieron. La reanudación funcionó.
+- **Siguiente paso:** descargar las 285 predicciones fuera de fold y elegir el umbral de
+  descarte de ET con validación anidada (elegirlo en 4 folds y medirlo en el quinto).
+
 **Visor** (`segmentacion/visor_colab.ipynb`): muestra la resonancia, la segmentación real y
 la predicción de los pacientes de validación, con su Dice, y analiza si el error depende
 del tamaño del tumor. Con un error de borde constante, el error relativo de volumen ya
 crece en los tumores pequeños (comprobado con una simulación), así que ese efecto solo no
 prueba que el modelo sea peor con ellos. Para eso hace falta una métrica en mm (Hausdorff
 95). Pendiente de repetir con el modelo final.
+
+### D24. Posprocesado de ET y máscaras finales fuera de fold — Tomada
+`segmentacion/postproceso_et.py`: si el ET predicho tiene menos de T voxeles, se reetiqueta
+como necrosis o tumor no realzado (TC y WT no cambian). T se elige con **validación
+anidada**: para cada fold, el mejor umbral en los otros 4, aplicado al fold. Se optimiza el
+Dice de ET con la convención oficial de BraTS (sin ET real ni predicho = 1).
+
+Resultado (2026-10-06, 285 pacientes fuera de fold):
+
+| | Antes | Después |
+|---|---|---|
+| WT | 0.907 | 0.907 |
+| TC | 0.842 | 0.842 |
+| ET (BraTS) | 0.742 | **0.769** |
+| ET (nnU-Net) | 0.735 | **0.751** |
+
+- El modelo predice ET en 20 de los 27 pacientes sin ET real, entre 1 y 3621 voxeles.
+- **Es un intercambio, no una mejora gratuita:** elimina 13 ET falsos, pero también pierde 14
+  ET reales pequeños (12 LGG y 2 HGG sin supervivencia). El umbral es inestable entre folds
+  (de 400 a 1000), y en el fold 2, que tiene un solo paciente sin ET, el posprocesado
+  empeora el resultado (0.829 → 0.807).
+- **Al pronóstico no le afecta:** en los 163 HGG con supervivencia no se descarta ningún ET y
+  todos conservan su ET predicho. Su Dice fuera de fold es WT 0.903, TC 0.897 y ET 0.831.
+- Umbral para casos nuevos, elegido con los 5 folds: 500 voxeles
+  (`resultados/postproceso_et.json`).
+
+Salida: `segmentaciones_pred/<paciente>_seg.nii.gz` (etiquetas BraTS 0/1/2/4). Cada máscara
+sale de un modelo que no vio a ese paciente y de un umbral que no se eligió mirándolo. La
+tabla por paciente está en `resultados/segmentacion_oof.csv`.
