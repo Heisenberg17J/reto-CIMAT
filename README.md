@@ -9,7 +9,7 @@ Están conectados: en uso real, la radiómica del objetivo 2 se calcula sobre la
 
 El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aquí como D*n*.
 
-## Estado (2026-10-02)
+## Estado (2026-10-06)
 
 | Etapa | Estado |
 |---|---|
@@ -18,7 +18,7 @@ El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aqu
 | Folds compartidos (5 × 57 pacientes) | Terminada |
 | Segmentación: conversión a nnU-Net y prueba de 5 épocas en Colab | Terminada |
 | Segmentación: 5 folds (100 épocas) + posprocesado de ET | Terminada: Dice fuera de fold WT 0.907, TC 0.842, ET 0.769 (D24) |
-| Pronóstico | **Pendiente**: empieza cuando haya máscaras fuera de fold |
+| Pronóstico | **Siguiente**: radiómica sobre las máscaras predichas y luego el modelo |
 
 ## Datos
 
@@ -93,24 +93,25 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 5. **Posprocesar** las 285 predicciones fuera de fold (carpeta `predicciones_oof/`, descargada de Drive): `python segmentacion/postproceso_et.py` elige con validación anidada el umbral para descartar ET pequeño y escribe las máscaras finales en `segmentaciones_pred/` (D24).
 6. **Ver predicciones** con `segmentacion/visor_colab.ipynb`: visor corte por corte (real frente a predicción), Dice por paciente y análisis del error según el tamaño del tumor.
 
-**Resultado de la prueba (T4, fold 0):** 463 s por época y 6.7 GB de VRAM. Tras solo 5 épocas, el Dice es WT 0.871, TC 0.752 y ET 0.639. El entrenamiento real de 100 épocas por fold tardaría unas 64 h en Colab gratis; probablemente lo limita la CPU (D23).
+**Resultado (D23, D24):** 5 folds × 100 épocas en una A100 con RAM amplia (64 s por época, ~1.8 h por fold). Dice fuera de fold de los 285 pacientes: **WT 0.907, TC 0.842 y ET 0.769** tras el posprocesado (0.742 sin él). En los 163 HGG con supervivencia: WT 0.903, TC 0.897 y ET 0.831, y el posprocesado no les cambia nada.
 
-**Siguiente paso:** entrenar los 5 folds. Sus predicciones de validación son las máscaras fuera de fold con las que se volverá a correr la radiómica (bloques 4–7) para el objetivo 2.
+**Siguiente paso:** volver a correr la radiómica (bloques 4–7) sobre `segmentaciones_pred/` para el objetivo 2.
 
 ## Decisiones abiertas
 
 - **D10:** si se agregan filtros LoG o Wavelet, lo que obligaría a re-extraer.
 - **D11:** cómo tratar el ET vacío de los 27 LGG. No afecta al pronóstico, que usa solo HGG.
-- **D23:** dónde entrenar y cuántas épocas; confirmar si la CPU es el cuello de botella.
 
 ## Estructura
 
 ```
-DECISIONES.md              por qué se hizo cada cosa (D0–D23)
+DECISIONES.md              por qué se hizo cada cosa (D0–D24)
 params_brats2018_v0.yaml   parámetros de PyRadiomics
 crear_env.sh, requirements.txt
 scripts/                   radiómica (bloques 1–7) y folds
-segmentacion/              conversión a nnU-Net y notebooks de Colab
+segmentacion/              conversión a nnU-Net, notebooks de Colab y posprocesado de ET
 particiones/folds.csv      partición compartida (versionada)
+predicciones_oof/          predicciones de nnU-Net por fold, descargadas de Drive (fuera de git)
+segmentaciones_pred/       máscaras finales fuera de fold, etiquetas BraTS (fuera de git)
 data/, data_normalizada/, nnunet_raw/, resultados/, logs/   generados o datos (fuera de git)
 ```

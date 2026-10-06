@@ -329,7 +329,7 @@ todo lo que se entrenó con ellos.
 
 ## Objetivo 1 — Segmentación (`segmentacion/`)
 
-### D23. nnU-Net v2, entrenamiento por regiones — Tomada (prueba)
+### D23. nnU-Net v2, entrenamiento por regiones — Tomada
 `convertir_nnunet.py` genera `nnunet_raw/Dataset501_BraTS2018`, siguiendo el conversor
 oficial de nnU-Net para BraTS:
 - **Imágenes originales**, no `data_normalizada`: nnU-Net hace su propio z-score sobre los
@@ -351,9 +351,9 @@ VRAM.
 - Tiempo estimado, solo entrenamiento: 100 épocas = 12.9 h por fold (64 h los 5 folds);
   250 épocas = 32 h por fold (161 h); 1000 épocas = 129 h por fold (643 h).
 
-**Pendiente:** decidir dónde y con cuántas épocas entrenar. La sospecha es que la CPU es
-el cuello de botella (Colab gratis da 2 núcleos para el aumento de datos de nnU-Net);
-falta confirmarlo midiendo el uso de la GPU.
+**Resuelto (2026-10-05):** A100 con RAM amplia y 100 épocas, detallado abajo. La sospecha de
+que la CPU era el cuello de botella se confirmó a medias: en la A100, el uso mediano de la
+GPU fue de 51–60 %.
 
 **Entrenamiento real del fold 0 (2026-10-05):** 100 épocas (unas 13 h en una T4) con
 `segmentacion/entrenar_colab.ipynb`:
