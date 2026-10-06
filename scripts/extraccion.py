@@ -44,8 +44,9 @@ import pandas as pd
 import radiomics
 
 import regiones as r
+import variante as v
 
-SALIDA = Path("resultados")
+SALIDA = v.RESULTADOS          # resultados/ o resultados/pred/ (variante.py)
 LOGS = Path("logs")
 
 PREFIJO_DIAG = "diagnostics_"
@@ -95,7 +96,7 @@ def extraer_paciente(tareas, extractores):
 
 def configurar_log():
     LOGS.mkdir(exist_ok=True)
-    ruta = LOGS / f"extraccion_{datetime.now():%Y%m%d_%H%M%S}.txt"
+    ruta = LOGS / f"extraccion_{v.PREFIJO_LOG}{datetime.now():%Y%m%d_%H%M%S}.txt"
     log = logging.getLogger("extraccion")
     log.setLevel(logging.INFO)
     archivo = logging.FileHandler(ruta, encoding="utf-8")
@@ -117,6 +118,7 @@ def main():
     args = parser.parse_args()
 
     log, ruta_log = configurar_log()
+    log.info(f"segmentacion: {v.DESCRIPCION}")
     log.info(f"pyradiomics {radiomics.__version__} | params {r.PARAMS}")
 
     forma, intensidad = r.crear_extractores()
@@ -153,7 +155,7 @@ def main():
         log.info(f"[{i}/{len(pacientes)}] {pid} ok: {len(tareas)} tareas, "
                  f"{len(caracteristicas)} caracteristicas, {time.time() - inicio:.1f} s")
 
-    SALIDA.mkdir(exist_ok=True)
+    SALIDA.mkdir(parents=True, exist_ok=True)
     # pd.DataFrame alinea columnas entre pacientes: regiones omitidas quedan como NaN
     df = pd.DataFrame(filas)
     df.to_csv(SALIDA / "caracteristicas.csv", index=False)

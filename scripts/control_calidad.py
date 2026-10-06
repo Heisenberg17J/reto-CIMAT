@@ -38,10 +38,11 @@ import pandas as pd
 from radiomics import getFeatureClasses
 
 import regiones as r
+import variante as v
 
-ENTRADA = Path("resultados/caracteristicas.csv")
-SALIDA = Path("resultados/caracteristicas_qc.csv")
-ELIMINADAS = Path("resultados/columnas_eliminadas.csv")
+ENTRADA = v.RESULTADOS / "caracteristicas.csv"
+SALIDA = v.RESULTADOS / "caracteristicas_qc.csv"
+ELIMINADAS = v.RESULTADOS / "columnas_eliminadas.csv"
 LOGS = Path("logs")
 
 # Prueba de cordura con un valor conocido (Bloque 6)
@@ -247,7 +248,7 @@ def prueba_rangos(x, c):
 
 def configurar_log():
     LOGS.mkdir(exist_ok=True)
-    ruta = LOGS / f"control_calidad_{datetime.now():%Y%m%d_%H%M%S}.txt"
+    ruta = LOGS / f"control_calidad_{v.PREFIJO_LOG}{datetime.now():%Y%m%d_%H%M%S}.txt"
     log = logging.getLogger("control_calidad")
     log.setLevel(logging.INFO)
     for h in (logging.FileHandler(ruta, encoding="utf-8"), logging.StreamHandler()):
@@ -262,6 +263,7 @@ def main():
     manifest = pd.read_csv(r.MANIFEST_ENTRADA)
     regiones = pd.read_csv(r.MANIFEST_SALIDA)
     log.info(f"Control de calidad de {ENTRADA}  ({datetime.now():%Y-%m-%d %H:%M})")
+    log.info(f"segmentacion: {v.DESCRIPCION}")
     log.info(f"{df.shape[0]} filas x {df.shape[1] - 1} columnas de caracteristicas")
 
     c = Control(log)

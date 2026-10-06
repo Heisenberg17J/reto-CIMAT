@@ -19,10 +19,14 @@ Entrada  (no se modifica):
     data_normalizada/manifest.csv
     params_brats2018_v0.yaml      <- de aqui salen minimumROISize/Dimensions
 
-Salida:
+Salida (segmentacion manual, la de siempre):
     data_normalizada/<paciente>/<paciente>_mask_<WT|TC|ET>.nii.gz
     data_normalizada/manifest_regiones.csv   <- una fila por paciente x region
     logs/regiones_<fecha>.csv
+Con SEGMENTACION=pred (mascaras de nnU-Net, ver variante.py):
+    segmentaciones_pred/mascaras/<paciente>_mask_<WT|TC|ET>.nii.gz
+    segmentaciones_pred/manifest_regiones.csv
+    logs/regiones_pred_<fecha>.csv
 
 Una region vacia o demasiado pequena no se descarta en silencio: queda en el
 manifest con estado "vacia" / "pequena" y el Bloque 5 la salta (sus
@@ -31,6 +35,7 @@ caracteristicas quedaran como NaN). Que hacer con ellas es DECISION ABIERTA.
 Uso (desde la raiz del repo):
     python scripts/regiones.py
     python scripts/regiones.py --sobrescribir
+    SEGMENTACION=pred python scripts/regiones.py
 """
 
 import argparse
@@ -43,9 +48,10 @@ import pandas as pd
 import yaml
 
 import paciente as p
+import variante as v
 
 MANIFEST_ENTRADA = Path("data_normalizada/manifest.csv")
-MANIFEST_SALIDA = Path("data_normalizada/manifest_regiones.csv")
+MANIFEST_SALIDA = v.MANIFEST_REGIONES
 PARAMS = Path("params_brats2018_v0.yaml")
 LOGS = Path("logs")
 
@@ -72,7 +78,9 @@ def leer_umbrales(params=PARAMS):
 
 
 def ruta_mascara(pac, region):
-    return pac.seg.parent / f"{pac.paciente_id}_mask_{region}.nii.gz"
+    ruta = v.ruta_mascara(pac, region)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    return ruta
 
 
 def estado_region(mascara, min_voxeles, min_dims):
@@ -90,7 +98,7 @@ def estado_region(mascara, min_voxeles, min_dims):
 
 def procesar_paciente(pac, umbrales, sobrescribir):
     """Crea las 3 mascaras de un paciente. Devuelve una fila por region."""
-    seg_img = nib.load(pac.seg)
+    seg_img = nib.load(v.ruta_seg(pac))
     seg = np.asanyarray(seg_img.dataobj).astype(np.int16)
     vol_voxel = float(np.prod(seg_img.header.get_zooms()[:3]))
     filas = []
@@ -180,6 +188,7 @@ def main():
                         help="vuelve a generar mascaras que ya existen")
     args = parser.parse_args()
 
+    print(f"Segmentacion: {v.DESCRIPCION}")
     umbrales = leer_umbrales()
     print(f"Umbrales (de {PARAMS}): minimumROISize={umbrales[0]}, "
           f"minimumROIDimensions={umbrales[1]}")
@@ -196,7 +205,7 @@ def main():
     df.to_csv(MANIFEST_SALIDA, index=False)
 
     LOGS.mkdir(exist_ok=True)
-    ruta_log = LOGS / f"regiones_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    ruta_log = LOGS / f"regiones_{v.PREFIJO_LOG}{datetime.now():%Y%m%d_%H%M%S}.csv"
     df_log = df.copy()
     df_log.insert(0, "fecha", datetime.now().isoformat(timespec="seconds"))
     df_log.to_csv(ruta_log, index=False)

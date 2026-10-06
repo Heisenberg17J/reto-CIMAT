@@ -18,7 +18,8 @@ El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aqu
 | Folds compartidos (5 × 57 pacientes) | Terminada |
 | Segmentación: conversión a nnU-Net y prueba de 5 épocas en Colab | Terminada |
 | Segmentación: 5 folds (100 épocas) + posprocesado de ET | Terminada: Dice fuera de fold WT 0.907, TC 0.842, ET 0.769 (D24) |
-| Pronóstico | **Siguiente**: radiómica sobre las máscaras predichas y luego el modelo |
+| Pronóstico: radiómica sobre máscaras predichas | Terminada: `resultados/pred/features.csv`, 285 × 1146, sin NaN en los 163 HGG con supervivencia (D25) |
+| Pronóstico: robustez y modelo | **Siguiente** |
 
 ## Datos
 
@@ -72,6 +73,12 @@ La extracción tarda unos 20 s por paciente, alrededor de 1.5–2 h en total. `n
 
 **Columnas de `features.csv`:** `paciente_id` y luego `<modalidad>_<región>_<clase>_<nombre>`, por ejemplo `t1ce_ET_glcm_Contrast`. La forma aparece como `mask_<región>_shape_<nombre>` (D13). Los 27 LGG sin ET tienen NaN en las 382 columnas de ET.
 
+**Variante con las máscaras predichas (objetivo 2, D25):** los mismos bloques 4–7 con `SEGMENTACION=pred` usan `segmentaciones_pred/` y escriben en `resultados/pred/`, sin tocar la versión manual:
+```
+SEGMENTACION=pred nohup sh -c "python scripts/regiones.py && python scripts/extraccion.py && \
+  python scripts/control_calidad.py && python scripts/exportar.py" > logs/flujo_pred.txt 2>&1 &
+```
+
 **Regla:** la selección de características, el filtrado por correlación y la reducción de dimensionalidad van **dentro** de la validación cruzada, nunca sobre `features.csv` (D19).
 
 ## Folds compartidos (`scripts/folds.py`)
@@ -105,7 +112,7 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 ## Estructura
 
 ```
-DECISIONES.md              por qué se hizo cada cosa (D0–D24)
+DECISIONES.md              por qué se hizo cada cosa (D0–D25)
 params_brats2018_v0.yaml   parámetros de PyRadiomics
 crear_env.sh, requirements.txt
 scripts/                   radiómica (bloques 1–7) y folds

@@ -449,3 +449,40 @@ Resultado (2026-10-06, 285 pacientes fuera de fold):
 Salida: `segmentaciones_pred/<paciente>_seg.nii.gz` (etiquetas BraTS 0/1/2/4). Cada máscara
 sale de un modelo que no vio a ese paciente y de un umbral que no se eligió mirándolo. La
 tabla por paciente está en `resultados/segmentacion_oof.csv`.
+
+---
+
+## Objetivo 2 — Pronóstico
+
+### D25. Radiómica sobre las máscaras predichas — Tomada
+En uso real no hay segmentación manual: la radiómica saldrá de la máscara del modelo 1. Por
+eso el modelo de pronóstico se entrena y evalúa con características extraídas de
+`segmentaciones_pred/` (D24), y no con las de la segmentación manual de BraTS.
+
+**Cómo se separan las variantes** (`scripts/variante.py`): la variable de entorno
+`SEGMENTACION` (`manual` por defecto, o `pred`) elige de dónde sale la segmentación, dónde
+se escriben las máscaras y el manifest de regiones, la carpeta de resultados y el prefijo
+de los logs. Las imágenes normalizadas son las mismas en las dos variantes. Así ninguna
+variante sobrescribe a la otra.
+
+| | manual | pred |
+|---|---|---|
+| Máscaras WT/TC/ET | `data_normalizada/<id>/` | `segmentaciones_pred/mascaras/` |
+| Manifest de regiones | `data_normalizada/manifest_regiones.csv` | `segmentaciones_pred/manifest_regiones.csv` |
+| Tablas | `resultados/` | `resultados/pred/` |
+| Logs | `logs/<bloque>_<fecha>` | `logs/<bloque>_pred_<fecha>` |
+
+Se verificó que la variante manual no cambia: `features.csv`, `caracteristicas.csv` y las
+máscaras conservan su sha256. En `manifest_regiones.csv` solo cambia la columna `mensaje`
+("ya existe"). El README de `features.csv` indica qué segmentación se usó.
+
+**Resultado (2026-10-06, 285 pacientes, ~1.5 h):** `resultados/pred/features.csv`, de 285 × 1146,
+con las mismas columnas, en el mismo orden, y los mismos pacientes que la tabla manual.
+- Extracción sin fallos; todas las pruebas críticas del control de calidad pasan. La
+  cordura dio 61 403 mm³ y VoxelVolume coincide con las máscaras predichas. No hay
+  columnas constantes ni infinitos, y el máximo es 1.1e9.
+- Regiones vacías en las máscaras predichas: ET en 36 pacientes (34 LGG y 2 HGG sin
+  supervivencia) y TC en 2, así que 764 columnas tienen algún NaN. **Los 163 HGG con
+  supervivencia no tienen ningún NaN.**
+- Siguiente paso (fase B): medir, característica por característica, cuánto cambia entre
+  la máscara manual y la predicha en esos 163 pacientes.
