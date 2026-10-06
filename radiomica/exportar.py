@@ -3,10 +3,10 @@ BLOQUE 7 - TABLA FINAL
 Reto CIMAT / BraTS
 
 Toma la tabla validada por el Bloque 6 y la entrega para el modelado:
-    resultados/features.csv   <- paciente_id como primera columna + caracteristicas
-    resultados/README.md      <- fecha, version de PyRadiomics, YAML usado,
+    resultados/radiomica/manual/features.csv   <- paciente_id como primera columna + caracteristicas
+    resultados/radiomica/manual/README.md      <- fecha, version de PyRadiomics, YAML usado,
                                  normalizacion, regiones y pacientes procesados
-Con SEGMENTACION=pred, lo mismo en resultados/pred/ (ver variante.py).
+Con SEGMENTACION=pred, lo mismo en resultados/radiomica/pred/ (ver variante.py).
 
 Solo exporta si control_calidad.py se ejecuto sobre la extraccion actual
 (caracteristicas_qc.csv mas reciente que caracteristicas.csv).
@@ -18,7 +18,7 @@ fold. Aplicarlos sobre features.csv y guardar el resultado contamina el
 experimento.
 
 Uso (desde la raiz del repo):
-    python scripts/exportar.py
+    python radiomica/exportar.py
 """
 
 import hashlib
@@ -32,7 +32,7 @@ import pandas as pd
 import regiones as r
 import variante as v
 
-EXTRACCION = v.RESULTADOS / "caracteristicas.csv"     # resultados/ o resultados/pred/
+EXTRACCION = v.RESULTADOS / "caracteristicas.csv"     # resultados/radiomica/manual/ o .../pred/
 ENTRADA = v.RESULTADOS / "caracteristicas_qc.csv"
 ELIMINADAS = v.RESULTADOS / "columnas_eliminadas.csv"
 DIAGNOSTICOS = v.RESULTADOS / "diagnosticos.csv"
@@ -44,10 +44,10 @@ LOGS = Path("logs")
 def verificar_qc():
     """Exige que la tabla validada exista y corresponda a la extraccion actual."""
     if not ENTRADA.exists():
-        sys.exit(f"No existe {ENTRADA}: ejecuta primero scripts/control_calidad.py")
+        sys.exit(f"No existe {ENTRADA}: ejecuta primero radiomica/control_calidad.py")
     if ENTRADA.stat().st_mtime < EXTRACCION.stat().st_mtime:
         sys.exit(f"{ENTRADA} es anterior a {EXTRACCION}: la extraccion cambio despues "
-                 f"del control de calidad. Ejecuta de nuevo scripts/control_calidad.py")
+                 f"del control de calidad. Ejecuta de nuevo radiomica/control_calidad.py")
 
 
 def fecha_extraccion():
@@ -89,7 +89,7 @@ Tabla de características radiómicas de BraTS 2018: una fila por paciente, y
 
 Z-score por paciente y por modalidad, calculado **solo sobre los voxeles del cerebro**
 (intensidad > 0). El fondo queda en 0. Se hace antes de PyRadiomics
-(`scripts/normalizar.py`), con `normalize: false` en el YAML.
+(`radiomica/normalizar.py`), con `normalize: false` en el YAML.
 
 ## Regiones extraídas
 

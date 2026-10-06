@@ -1,9 +1,13 @@
 # Decisiones — Reto CIMAT / BraTS 2018
 
 Registro de las decisiones metodológicas del pipeline de radiómica. Cada supuesto
-de `params_brats2018_v0.yaml` (A1, A2, A3) tiene aquí su entrada.
+de `config/params_brats2018_v0.yaml` (A1, A2, A3) tiene aquí su entrada.
 
 Estados: **Tomada** (implementada) · **Abierta** (pendiente de discutir o de un análisis de sensibilidad).
+Desde el 2026-10-06 no queda ninguna abierta.
+
+Las rutas citadas corresponden a la estructura del repositorio reorganizada el 2026-10-06
+(`radiomica/`, `datos/`, `resultados/<etapa>/`, `config/`); ver el README.
 
 ---
 
@@ -17,19 +21,19 @@ Estados: **Tomada** (implementada) · **Abierta** (pendiente de discutir o de un
 
 ---
 
-## Bloque 1 — Organización de los datos (`scripts/organizar_datos.py`)
+## Bloque 1 — Organización de los datos (`radiomica/organizar_datos.py`)
 
 ### D20. Estructura de entrada y manifest — Tomada
-Los datos originales se dejan tal como vienen de BraTS 2018 (`data/HGG/<id>/`,
-`data/LGG/<id>/`, `data/survival_data.csv`) y no se mueven ni se modifican.
-`organizar_datos.py` genera `data/manifest.csv` (`paciente_id`, `grado` y las 5 rutas) y
+Los datos originales se dejan tal como vienen de BraTS 2018 (`datos/brats2018/HGG/<id>/`,
+`datos/brats2018/LGG/<id>/`, `datos/brats2018/survival_data.csv`) y no se mueven ni se modifican.
+`organizar_datos.py` genera `datos/brats2018/manifest.csv` (`paciente_id`, `grado` y las 5 rutas) y
 todo el pipeline lee los pacientes de ahí, no de las carpetas. Un paciente solo entra
 al manifest si tiene sus 5 archivos.
 
 Conjunto completo (2026-10-01): **285 pacientes, 210 HGG y 75 LGG**, todos completos.
 
 ### D21. Tabla clínica — Tomada
-`data/clinica.csv` contiene una fila por paciente con `grado`, `origen`,
+`datos/brats2018/clinica.csv` contiene una fila por paciente con `grado`, `origen`,
 `tiene_supervivencia`, `edad`, `supervivencia_dias` y `reseccion`. Es la versión
 validada de `survival_data.csv`, que no se toca: ids únicos, todos con imagen, y edad y
 supervivencia numéricas (un texto como "ALIVE" detiene el script en lugar de volverse NaN).
@@ -51,7 +55,7 @@ supervivencia numéricas (un texto como "ALIVE" detiene el script en lugar de vo
 
 ---
 
-## Bloque 2 — Verificación (`scripts/verificacion.py`)
+## Bloque 2 — Verificación (`radiomica/verificacion.py`)
 
 ### D1. Comprobaciones previas a la extracción — Tomada
 Para cada paciente se verifica: mismo shape y affine en las 5 imágenes (tolerancia 1e-4),
@@ -83,7 +87,7 @@ las modalidades estén co-registradas.
 
 ---
 
-## Bloque 3 — Normalización (`scripts/normalizar.py`)
+## Bloque 3 — Normalización (`radiomica/normalizar.py`)
 
 ### D2 (= A1). Z-score solo sobre voxeles del cerebro — Tomada
 Cada modalidad se normaliza con media y desviación estándar calculadas **solo sobre los
@@ -98,7 +102,7 @@ la elección de `binWidth` (D9).
 
 ---
 
-## Bloque 4 — Regiones de interés (`scripts/regiones.py`)
+## Bloque 4 — Regiones de interés (`radiomica/regiones.py`)
 
 ### D3 (= A2). Regiones compuestas, no etiquetas sueltas — Tomada
 | Región | Etiquetas | Significado        |
@@ -108,7 +112,7 @@ la elección de `binWidth` (D9).
 | ET     | 4         | tumor con realce   |
 
 Se guarda una máscara binaria por región (valor 1, coherente con `label: 1`) en
-`data_normalizada/<paciente>/<paciente>_mask_<región>.nii.gz`. El script comprueba que
+`datos/normalizada/<paciente>/<paciente>_mask_<región>.nii.gz`. El script comprueba que
 ET ≤ TC ≤ WT.
 
 **Por qué:** son las regiones estándar de evaluación en BraTS y tienen sentido clínico.
@@ -116,7 +120,7 @@ Las etiquetas sueltas (sobre todo el edema, 2) no son las que se usan como ROI.
 
 ### D4. Las regiones inválidas se registran, no se descartan en silencio — Tomada
 `regiones.py` aplica los mismos umbrales que PyRadiomics (leídos del params) y marca cada
-región como `ok`, `vacia` o `pequena` en `data_normalizada/manifest_regiones.csv`. Solo
+región como `ok`, `vacia` o `pequena` en `datos/normalizada/manifest_regiones.csv`. Solo
 las regiones `ok` entran al plan de extracción; las demás quedarán como NaN.
 
 ### D5. Geometría sin corrección ni remuestreo — Tomada
@@ -136,7 +140,7 @@ Implementación: `crear_extractores()` crea los dos extractores a partir del mis
 
 ---
 
-## Parámetros de extracción (`params_brats2018_v0.yaml`)
+## Parámetros de extracción (`config/params_brats2018_v0.yaml`)
 
 ### D7. Clases de características — Tomada
 `shape`, `firstorder`, `glcm`, `glrlm`, `glszm`, `gldm`, `ngtdm`. De GLCM se excluye
@@ -174,14 +178,19 @@ textura o de Energy/TotalEnergy/RMS. Con el shift de 300, Energy se vuelve casi
 proporcional al volumen, información que ya está en `shape`. Elegir la escala no cambia
 nada (×100 con binWidth 10 es lo mismo que A); lo que importa es el ancho de bin.
 
-### D10 (= A3). Tipos de imagen — Abierta
+### D10 (= A3). Tipos de imagen — Tomada
 Primera pasada solo con `Original`. LoG (σ = 1–5 mm) y Wavelet (coif1, 8 descomposiciones)
 quedan comentados en el params. Si se activan, `padDistance: 10` ya cubre el σ más grande.
 
-**Para decidir:** multiplican el número de características (~×5 con LoG, ×8 con Wavelet),
-lo que agrava el problema de dimensionalidad con pocos pacientes.
+**Decisión (2026-10-06): solo `Original`.** LoG y Wavelet multiplican el número de
+características (~×5 y ×8: hasta 9 978 con Wavelet). Con solo `Original` (1146), el genético ya
+sobreajusta +0.09 y Elastic Net no supera a la edad (D27); más características solo agrandan
+el espacio que se puede sobreajustar. En la literatura, el enfoque de alta dimensión con
+filtros tampoco superó a la edad en BraTS (R6 de `docs/DECISIONS_RECOMMENDATIONS.md`). Si
+algún día se prueban, será como experimento aparte, declarado de antemano y con su propia
+validación cruzada anidada.
 
-### D11. Regiones pequeñas o vacías — Abierta
+### D11. Regiones pequeñas o vacías — Tomada
 `minimumROISize: 27` y `minimumROIDimensions: 3` son provisionales. En el conjunto
 completo, **27 de los 75 LGG (36 %) no tienen ET**; ningún HGG está en ese caso, y como la
 supervivencia solo es de HGG, no afecta a ese objetivo. En la clasificación HGG/LGG, en
@@ -197,8 +206,18 @@ modalidad con menos de 30 bins en ET: es la región con texturas menos confiable
 El params es la única fuente del umbral: `verificacion.py` y `regiones.py` lo leen de ahí
 (`leer_umbrales()`), así que cambiarlo en el params cambia todo el pipeline.
 
-**Opciones para ET vacío:** dejar NaN e imputar, excluir al paciente de los modelos que
-usan ET, o añadir una variable indicadora "sin realce".
+**Decisión (2026-10-06):**
+- **Umbrales:** se mantienen `minimumROISize: 27` y `minimumROIDimensions: 3`. Ningún HGG tiene ET por
+  debajo de 100 voxeles, así que un umbral más alto (por ejemplo 64, que propone R8) no cambiaría
+  a ningún paciente del pronóstico.
+- **Pronóstico:** la cuestión no aplica. Los 163 HGG con supervivencia tienen ET, tanto en la
+  máscara manual como en la predicha (D25), y no hay NaN que tratar.
+- **Segmentación:** el ET vacío se maneja con el posprocesado (D24) y con la convención de
+  BraTS para las métricas (D28).
+- **Si algún día se construye un clasificador HGG/LGG:** no imputar las columnas de ET. Usar una
+  indicadora `tiene_ET`, volumen de ET = 0 y excluir las texturas de ET. La ausencia de ET es
+  la señal de grado más fuerte (36 % de los LGG frente a 0 % de los HGG), así que esa
+  indicadora sola sería la línea base que la radiómica tendría que superar (R8).
 
 ### D12. Columnas de diagnóstico — Tomada
 `additionalInfo: true` conserva las columnas `diagnostics_*` como trazabilidad. No entran
@@ -206,7 +225,7 @@ a la tabla del modelo: se guardan en un archivo aparte (D15).
 
 ---
 
-## Bloque 5 — Extracción (`scripts/extraccion.py`)
+## Bloque 5 — Extracción (`radiomica/extraccion.py`)
 
 ### D13. Convención de nombres de columnas — Tomada
 Cada columna tiene siempre 4 partes separadas por `_`:
@@ -232,13 +251,13 @@ advertencia, y sus columnas quedan como NaN.
 
 ### D15. Diagnósticos aparte de las características — Tomada
 Las columnas `diagnostics_*` (versiones, parámetros, hash de imagen y máscara, número de
-voxeles, bounding box) se guardan en `resultados/diagnosticos.csv`, con una fila por llamada
-a PyRadiomics. `resultados/caracteristicas.csv` contiene solo características y está lista
+voxeles, bounding box) se guardan en `resultados/radiomica/manual/diagnosticos.csv`, con una fila por llamada
+a PyRadiomics. `resultados/radiomica/manual/caracteristicas.csv` contiene solo características y está lista
 para el modelo. Esto concreta D12.
 
 ---
 
-## Bloque 6 — Control de calidad (`scripts/control_calidad.py`)
+## Bloque 6 — Control de calidad (`radiomica/control_calidad.py`)
 
 ### D16. Pruebas críticas y pruebas de revisión — Tomada
 | # | Prueba | Tipo |
@@ -264,7 +283,7 @@ con código 1. Los NaN no se tocan aquí: su tratamiento depende de D11.
 
 ### D17. Eliminación de columnas constantes — Tomada
 Se elimina toda columna con un único valor finito (o ninguno) en todos los pacientes. Cada
-eliminación queda registrada con su motivo en `resultados/columnas_eliminadas.csv`.
+eliminación queda registrada con su motivo en `resultados/radiomica/manual/columnas_eliminadas.csv`.
 
 **Por qué:** no aportan información y rompen la estandarización (división por varianza
 cero) y algunos modelos.
@@ -276,12 +295,12 @@ selección de características, no aquí.
 
 ---
 
-## Bloque 7 — Tabla final (`scripts/exportar.py`)
+## Bloque 7 — Tabla final (`radiomica/exportar.py`)
 
 ### D18. Entrega y procedencia — Tomada
 `exportar.py` toma `caracteristicas_qc.csv` (la tabla que validó el Bloque 6) y escribe
-`resultados/features.csv` (con `paciente_id` como primera columna) y, junto a ella,
-`resultados/README.md`. Se niega a exportar si `caracteristicas_qc.csv` no existe o es
+`resultados/radiomica/manual/features.csv` (con `paciente_id` como primera columna) y, junto a ella,
+`resultados/radiomica/manual/README.md`. Se niega a exportar si `caracteristicas_qc.csv` no existe o es
 más antigua que `caracteristicas.csv`: así nunca sale una tabla que no pasó el control
 de calidad. El README registra: fecha, versión de PyRadiomics (tomada de los
 diagnósticos, es decir, la que realmente se usó), ruta y sha256 del YAML, método de
@@ -299,7 +318,7 @@ no depende de cómo se dividan los datos.
 
 ---
 
-## Folds compartidos (`scripts/folds.py`)
+## Folds compartidos (`radiomica/folds.py`)
 
 ### D22. Una sola partición para los dos objetivos — Tomada
 `particiones/folds.csv` asigna cada paciente a 1 de 5 folds (semilla 42), estratificados
@@ -330,9 +349,9 @@ todo lo que se entrenó con ellos.
 ## Objetivo 1 — Segmentación (`segmentacion/`)
 
 ### D23. nnU-Net v2, entrenamiento por regiones — Tomada
-`convertir_nnunet.py` genera `nnunet_raw/Dataset501_BraTS2018`, siguiendo el conversor
+`convertir_nnunet.py` genera `datos/nnunet_raw/Dataset501_BraTS2018`, siguiendo el conversor
 oficial de nnU-Net para BraTS:
-- **Imágenes originales**, no `data_normalizada`: nnU-Net hace su propio z-score sobre los
+- **Imágenes originales**, no `datos/normalizada`: nnU-Net hace su propio z-score sobre los
   voxeles no nulos, el mismo criterio que D2. Las imágenes son enlaces duros, así que no
   ocupan espacio extra.
 - **Etiquetas** 0/1/2/4 → 0/2/1/3 (edema 1, necrosis 2, realce 3), para que las regiones
@@ -444,11 +463,11 @@ Resultado (2026-10-06, 285 pacientes fuera de fold):
 - **Al pronóstico no le afecta:** en los 163 HGG con supervivencia no se descarta ningún ET y
   todos conservan su ET predicho. Su Dice fuera de fold es WT 0.903, TC 0.897 y ET 0.831.
 - Umbral para casos nuevos, elegido con los 5 folds: 500 voxeles
-  (`resultados/postproceso_et.json`).
+  (`resultados/segmentacion/postproceso_et.json`).
 
-Salida: `segmentaciones_pred/<paciente>_seg.nii.gz` (etiquetas BraTS 0/1/2/4). Cada máscara
+Salida: `datos/segmentaciones_pred/<paciente>_seg.nii.gz` (etiquetas BraTS 0/1/2/4). Cada máscara
 sale de un modelo que no vio a ese paciente y de un umbral que no se eligió mirándolo. La
-tabla por paciente está en `resultados/segmentacion_oof.csv`.
+tabla por paciente está en `resultados/segmentacion/segmentacion_oof.csv`.
 
 ---
 
@@ -457,9 +476,9 @@ tabla por paciente está en `resultados/segmentacion_oof.csv`.
 ### D25. Radiómica sobre las máscaras predichas — Tomada
 En uso real no hay segmentación manual: la radiómica saldrá de la máscara del modelo 1. Por
 eso el modelo de pronóstico se entrena y evalúa con características extraídas de
-`segmentaciones_pred/` (D24), y no con las de la segmentación manual de BraTS.
+`datos/segmentaciones_pred/` (D24), y no con las de la segmentación manual de BraTS.
 
-**Cómo se separan las variantes** (`scripts/variante.py`): la variable de entorno
+**Cómo se separan las variantes** (`radiomica/variante.py`): la variable de entorno
 `SEGMENTACION` (`manual` por defecto, o `pred`) elige de dónde sale la segmentación, dónde
 se escriben las máscaras y el manifest de regiones, la carpeta de resultados y el prefijo
 de los logs. Las imágenes normalizadas son las mismas en las dos variantes. Así ninguna
@@ -467,16 +486,16 @@ variante sobrescribe a la otra.
 
 | | manual | pred |
 |---|---|---|
-| Máscaras WT/TC/ET | `data_normalizada/<id>/` | `segmentaciones_pred/mascaras/` |
-| Manifest de regiones | `data_normalizada/manifest_regiones.csv` | `segmentaciones_pred/manifest_regiones.csv` |
-| Tablas | `resultados/` | `resultados/pred/` |
+| Máscaras WT/TC/ET | `datos/normalizada/<id>/` | `datos/segmentaciones_pred/mascaras/` |
+| Manifest de regiones | `datos/normalizada/manifest_regiones.csv` | `datos/segmentaciones_pred/manifest_regiones.csv` |
+| Tablas | `resultados/radiomica/manual/` | `resultados/radiomica/pred/` |
 | Logs | `logs/<bloque>_<fecha>` | `logs/<bloque>_pred_<fecha>` |
 
 Se verificó que la variante manual no cambia: `features.csv`, `caracteristicas.csv` y las
 máscaras conservan su sha256. En `manifest_regiones.csv` solo cambia la columna `mensaje`
 ("ya existe"). El README de `features.csv` indica qué segmentación se usó.
 
-**Resultado (2026-10-06, 285 pacientes, ~1.5 h):** `resultados/pred/features.csv`, de 285 × 1146,
+**Resultado (2026-10-06, 285 pacientes, ~1.5 h):** `resultados/radiomica/pred/features.csv`, de 285 × 1146,
 con las mismas columnas, en el mismo orden, y los mismos pacientes que la tabla manual.
 - Extracción sin fallos; todas las pruebas críticas del control de calidad pasan. La
   cordura dio 61 403 mm³ y VoxelVolume coincide con las máscaras predichas. No hay
@@ -491,7 +510,7 @@ con las mismas columnas, en el mismo orden, y los mismos pacientes que la tabla 
 `pronostico/robustez_segmentacion.py` compara cada característica calculada con la máscara
 manual y con la predicha, en los 163 HGG con supervivencia. Usa el CCC de Lin (acuerdo en
 valor absoluto) y el Spearman (se conserva el orden de los pacientes). Resultado en
-`resultados/robustez_segmentacion.csv`.
+`resultados/pronostico/robustez_segmentacion.csv`.
 
 Resultado (2026-10-06):
 - **CCC ≥ 0.85 en 805 de 1146 (70 %)**, con una mediana de 0.923. WT y TC son robustas
@@ -529,7 +548,7 @@ de la edad 0.625 (supuesto ~0.62).
 | Entrada | Edad (sin penalizar) + características predichas (D25) con el filtro D26 (935) |
 | Objetivo del modelo | Riesgo de Cox entrenado sobre los días |
 | Métrica principal | c-index de Harrell |
-| Métricas secundarias | Exactitud en 3 clases (< 300, 300–450 y > 450 días; las clases salen de cuantiles del riesgo en el entrenamiento, ajustados a sus proporciones), ρ de Spearman y MSE con la mediana de supervivencia predicha. **CHECK:** confirmar los cortes con el artículo de BraTS 2018 |
+| Métricas secundarias | Exactitud en 3 clases (< 300, 300–450 y > 450 días; las clases salen de cuantiles del riesgo en el entrenamiento, ajustados a sus proporciones), ρ de Spearman y MSE con la mediana de supervivencia predicha. Cortes **confirmados** (2026-10-06) en Bakas et al. 2018 (arXiv:1811.02629, §2.3.6): corta < 10 meses, media 10–15 y larga > 15. El artículo da los cortes en meses; 300 y 450 días suponen meses de 30 días, y con 30.44 (304 y 456) solo 1 de los 163 pacientes cambiaría de clase |
 | Validación | Anidada. Externa: 5 folds × 10 repeticiones (`particiones/folds_pronostico.csv`; la repetición 0 son los folds de D22 y las demás se estratifican por tercil de supervivencia). Interna: 3 folds × 2 repeticiones |
 | Brazo 1 | Edad sola (Cox) |
 | Brazo 2 | Cox Elastic Net (`l1_ratio` 0.5, camino de 30 penalizaciones, `alpha` por c-index interno) |
@@ -601,3 +620,44 @@ En el análisis principal:
 
 Resultados en `resultados/pronostico/<análisis>/` y gráficos en `pronostico/analisis.ipynb`.
 El control con la supervivencia barajada está en `resultados/pronostico/prueba_permutada/`.
+
+---
+
+## Cierre de la fase experimental (2026-10-06)
+
+### D28. Métricas oficiales de BraTS para la segmentación — Tomada
+`segmentacion/metricas_segmentacion.py` evalúa las 285 máscaras finales fuera de fold (D24)
+con las métricas del reto (Bakas et al. 2018, §2.3.7): Dice, **Hausdorff 95** (máximo de los
+dos percentiles 95 dirigidos entre superficies, en mm), sensibilidad y especificidad.
+Convención de BraTS para regiones vacías: si falta en las dos, Dice = 1 y HD95 = 0; si falta
+en una sola, Dice = 0 y HD95 = 373.13 mm. La función se validó con esferas de resultado
+conocido (radios 10 y 12 → 2.24; desplazamiento de 5 voxeles → 4.90).
+
+| | Dice medio | HD95 medio (mm) | HD95 mediano (mm) | Sensibilidad | Especificidad |
+|---|---|---|---|---|---|
+| WT | 0.907 | 7.0 | 3.6 | 0.901 | 0.999 |
+| TC | 0.842 | 9.4 | 3.5 | 0.848 | 0.999 |
+| ET | 0.769 | 34.4 | 2.2 | 0.785 | 1.000 |
+| *163 HGG con supervivencia* | 0.903 / 0.897 / 0.831 | 6.8 / 4.9 / 4.1 | 3.7 / 2.2 / 2.0 | | |
+
+La media de HD95 en ET está dominada por 25 casos con la región ausente en una sola de las
+dos máscaras (373 mm). La mediana describe el caso típico.
+
+### D29. Estructura del repositorio y resultados versionados — Tomada
+Reorganización del 2026-10-06:
+- **Código por etapa:** `radiomica/` (antes `scripts/`), `segmentacion/` y `pronostico/`.
+- **Datos pesados** en `datos/`, fuera de git.
+- **Parámetros** en `config/`.
+- **Documentos de apoyo** en `docs/`.
+
+Las tablas finales de `resultados/` se versionan (unos 14 MB), para que los números del
+artículo salgan de archivos fijos. Las intermedias pesadas (`caracteristicas*.csv`,
+`diagnosticos.csv`) no se versionan.
+
+**Verificación tras mover todo:**
+- Las características de un paciente, recalculadas desde cero con las rutas nuevas,
+  coinciden con `features.csv` (diferencia relativa < 1e-12) en las dos variantes.
+- El control de calidad, la exportación, la robustez y el posprocesado reproducen sus
+  salidas con el mismo sha256.
+- El pronóstico corre con las rutas nuevas.
+

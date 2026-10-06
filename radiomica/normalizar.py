@@ -6,19 +6,19 @@ Normaliza (z-score) cada modalidad de cada paciente usando solo los voxeles
 del cerebro (intensidad > 0). El fondo se deja en 0.
 
 Entrada  (no se modifica):
-    data/manifest.csv
-    data/<paciente>/<paciente>_<modalidad>.nii.gz
+    datos/brats2018/manifest.csv
+    datos/brats2018/<paciente>/<paciente>_<modalidad>.nii.gz
 
 Salida:
-    data_normalizada/manifest.csv                      <- para el modelo
-    data_normalizada/<paciente>/<paciente>_<mod>.nii.gz
+    datos/normalizada/manifest.csv                      <- para el modelo
+    datos/normalizada/<paciente>/<paciente>_<mod>.nii.gz
     logs/normalizacion_<fecha>.csv                     <- una fila por archivo
 
 La segmentacion (seg) se copia tal cual: son etiquetas, no intensidades.
 
 Uso (desde la raiz del repo):
-    python scripts/normalizar.py
-    python scripts/normalizar.py --sobrescribir
+    python radiomica/normalizar.py
+    python radiomica/normalizar.py --sobrescribir
 """
 
 import argparse
@@ -32,8 +32,8 @@ import pandas as pd
 
 import paciente as p
 
-MANIFEST_ENTRADA = Path("data/manifest.csv")
-SALIDA = Path("data_normalizada")
+MANIFEST_ENTRADA = Path("datos/brats2018/manifest.csv")
+SALIDA = Path("datos/normalizada")
 LOGS = Path("logs")
 MODALIDADES = ["t1", "t1ce", "t2", "flair"]
 

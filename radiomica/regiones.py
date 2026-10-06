@@ -16,16 +16,16 @@ forma de una region es la misma en las 4. Por eso:
     firstorder + texturas       -> 1 vez por modalidad x region (12 por paciente)
 
 Entrada  (no se modifica):
-    data_normalizada/manifest.csv
+    datos/normalizada/manifest.csv
     params_brats2018_v0.yaml      <- de aqui salen minimumROISize/Dimensions
 
 Salida (segmentacion manual, la de siempre):
-    data_normalizada/<paciente>/<paciente>_mask_<WT|TC|ET>.nii.gz
-    data_normalizada/manifest_regiones.csv   <- una fila por paciente x region
+    datos/normalizada/<paciente>/<paciente>_mask_<WT|TC|ET>.nii.gz
+    datos/normalizada/manifest_regiones.csv   <- una fila por paciente x region
     logs/regiones_<fecha>.csv
 Con SEGMENTACION=pred (mascaras de nnU-Net, ver variante.py):
-    segmentaciones_pred/mascaras/<paciente>_mask_<WT|TC|ET>.nii.gz
-    segmentaciones_pred/manifest_regiones.csv
+    datos/segmentaciones_pred/mascaras/<paciente>_mask_<WT|TC|ET>.nii.gz
+    datos/segmentaciones_pred/manifest_regiones.csv
     logs/regiones_pred_<fecha>.csv
 
 Una region vacia o demasiado pequena no se descarta en silencio: queda en el
@@ -33,9 +33,9 @@ manifest con estado "vacia" / "pequena" y el Bloque 5 la salta (sus
 caracteristicas quedaran como NaN). Que hacer con ellas es DECISION ABIERTA.
 
 Uso (desde la raiz del repo):
-    python scripts/regiones.py
-    python scripts/regiones.py --sobrescribir
-    SEGMENTACION=pred python scripts/regiones.py
+    python radiomica/regiones.py
+    python radiomica/regiones.py --sobrescribir
+    SEGMENTACION=pred python radiomica/regiones.py
 """
 
 import argparse
@@ -50,9 +50,9 @@ import yaml
 import paciente as p
 import variante as v
 
-MANIFEST_ENTRADA = Path("data_normalizada/manifest.csv")
+MANIFEST_ENTRADA = Path("datos/normalizada/manifest.csv")
 MANIFEST_SALIDA = v.MANIFEST_REGIONES
-PARAMS = Path("params_brats2018_v0.yaml")
+PARAMS = Path("config/params_brats2018_v0.yaml")
 LOGS = Path("logs")
 
 MODALIDADES = ["t1", "t1ce", "t2", "flair"]

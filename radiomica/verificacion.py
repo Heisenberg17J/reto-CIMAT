@@ -9,11 +9,11 @@ Comprueba, para cada paciente, que los 5 archivos son lo que creemos:
   4. seg      -> etiquetas presentes
   5. conteo   -> volumen de cada region
 
-Lee los pacientes de data/manifest.csv (generado por organizar_datos.py,
+Lee los pacientes de datos/brats2018/manifest.csv (generado por organizar_datos.py,
 Bloque 1), asi que no depende de como esten organizadas las carpetas.
 
 Uso (desde la raiz del repo):
-    python scripts/verificacion.py
+    python radiomica/verificacion.py
 """
 
 from pathlib import Path
@@ -23,7 +23,7 @@ import nibabel as nib
 import paciente as p
 from regiones import leer_umbrales
 
-MANIFEST = Path("data/manifest.csv")
+MANIFEST = Path("datos/brats2018/manifest.csv")
 MODALIDADES = ["t1", "t1ce", "t2", "flair"]
 ARCHIVOS = MODALIDADES + ["seg"]
 

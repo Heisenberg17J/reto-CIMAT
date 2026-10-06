@@ -12,11 +12,11 @@ Estratifica por grupo: HGG con supervivencia / HGG sin supervivencia / LGG,
 para que cada fold tenga la misma proporcion de pacientes utiles para el
 pronostico (163 HGG con supervivencia).
 
-Entrada:  data/clinica.csv      (organizar_datos.py)
+Entrada:  datos/brats2018/clinica.csv      (organizar_datos.py)
 Salida:   particiones/folds.csv (paciente_id, grado, grupo, fold)
 
 Uso (desde la raiz del repo):
-    python scripts/folds.py
+    python radiomica/folds.py
 """
 
 from pathlib import Path
@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 
-CLINICA = Path("data/clinica.csv")
+CLINICA = Path("datos/brats2018/clinica.csv")
 SALIDA = Path("particiones/folds.csv")
 N_FOLDS = 5
 SEMILLA = 42

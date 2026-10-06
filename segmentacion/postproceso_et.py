@@ -18,13 +18,13 @@ Convencion de Dice (la oficial de BraTS): si no hay ET real ni predicho, Dice = 
 Tambien se reporta la de nnU-Net (ese caso no cuenta).
 
 Entrada:
-    predicciones_oof/fold_k/validation/<paciente>.nii.gz   (etiquetas nnU-Net 0/1/2/3)
-    nnunet_raw/Dataset501_BraTS2018/labelsTr/               (segmentacion real)
+    datos/predicciones_oof/fold_k/validation/<paciente>.nii.gz   (etiquetas nnU-Net 0/1/2/3)
+    datos/nnunet_raw/Dataset501_BraTS2018/labelsTr/               (segmentacion real)
     particiones/folds.csv
 
 Salida:
-    segmentaciones_pred/<paciente>_seg.nii.gz   <- mascara final, etiquetas BraTS 0/1/2/4
-    resultados/segmentacion_oof.csv             <- Dice por paciente, antes y despues
+    datos/segmentaciones_pred/<paciente>_seg.nii.gz   <- mascara final, etiquetas BraTS 0/1/2/4
+    resultados/segmentacion/segmentacion_oof.csv             <- Dice por paciente, antes y despues
 
 Uso (desde la raiz del repo):
     python segmentacion/postproceso_et.py
@@ -41,12 +41,12 @@ import pandas as pd
 
 from convertir_nnunet import NNUNET_A_BRATS, reasignar
 
-PRED = Path("predicciones_oof")
-GT = Path("nnunet_raw/Dataset501_BraTS2018/labelsTr")
+PRED = Path("datos/predicciones_oof")
+GT = Path("datos/nnunet_raw/Dataset501_BraTS2018/labelsTr")
 FOLDS = Path("particiones/folds.csv")
-SALIDA = Path("segmentaciones_pred")
-TABLA = Path("resultados/segmentacion_oof.csv")
-DECISION = Path("resultados/postproceso_et.json")
+SALIDA = Path("datos/segmentaciones_pred")
+TABLA = Path("resultados/segmentacion/segmentacion_oof.csv")
+DECISION = Path("resultados/segmentacion/postproceso_et.json")
 
 UMBRALES = [0, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000]
 

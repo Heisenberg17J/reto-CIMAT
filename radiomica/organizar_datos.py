@@ -6,21 +6,21 @@ Recorre los datos originales de BraTS 2018 y genera las tablas de entrada del
 pipeline. No mueve ni modifica ningun archivo de imagen.
 
 Espera una estructura:
-    data/
+    datos/brats2018/
       HGG/Brats18_XXXX/Brats18_XXXX_<t1|t1ce|t2|flair|seg>.nii.gz
       LGG/Brats18_XXXX/...
       survival_data.csv        <- BraTS18ID, Age, Survival, ResectionStatus
 
 Salida:
-    data/manifest.csv   <- una fila por paciente completo: paciente_id, grado, rutas
-    data/clinica.csv    <- una fila por paciente: grado, origen, edad, supervivencia
+    datos/brats2018/manifest.csv   <- una fila por paciente completo: paciente_id, grado, rutas
+    datos/brats2018/clinica.csv    <- una fila por paciente: grado, origen, edad, supervivencia
     logs/organizacion_<fecha>.csv  <- carpetas incompletas o con archivos de mas
 
 survival_data.csv no se modifica: clinica.csv es su version validada y unida
 con el grado. Solo los HGG tienen supervivencia en BraTS 2018.
 
 Uso (desde la raiz del repo):
-    python scripts/organizar_datos.py
+    python radiomica/organizar_datos.py
 """
 
 from datetime import datetime
@@ -30,7 +30,7 @@ import pandas as pd
 
 import paciente as p
 
-RAIZ = Path("data")
+RAIZ = Path("datos/brats2018")
 GRADOS = ["HGG", "LGG"]
 SUPERVIVENCIA = RAIZ / "survival_data.csv"
 MANIFEST = RAIZ / "manifest.csv"

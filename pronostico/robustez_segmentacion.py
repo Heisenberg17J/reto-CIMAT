@@ -16,12 +16,12 @@ No usa la supervivencia: es un filtro sin etiqueta, como el de columnas
 constantes (D17), y no filtra informacion del objetivo hacia la validacion.
 
 Entrada:
-    resultados/features.csv        (mascara manual)
-    resultados/pred/features.csv   (mascara predicha)
+    resultados/radiomica/manual/features.csv        (mascara manual)
+    resultados/radiomica/pred/features.csv   (mascara predicha)
     particiones/folds.csv          (grupo HGG_superv)
 
 Salida:
-    resultados/robustez_segmentacion.csv   <- una fila por caracteristica
+    resultados/pronostico/robustez_segmentacion.csv   <- una fila por caracteristica
 
 Uso (desde la raiz del repo):
     python pronostico/robustez_segmentacion.py
@@ -33,10 +33,10 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
-MANUAL = Path("resultados/features.csv")
-PRED = Path("resultados/pred/features.csv")
+MANUAL = Path("resultados/radiomica/manual/features.csv")
+PRED = Path("resultados/radiomica/pred/features.csv")
 FOLDS = Path("particiones/folds.csv")
-SALIDA = Path("resultados/robustez_segmentacion.csv")
+SALIDA = Path("resultados/pronostico/robustez_segmentacion.csv")
 CORTE = 0.85
 
 

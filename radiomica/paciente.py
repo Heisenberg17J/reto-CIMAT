@@ -30,7 +30,7 @@ class Paciente:
     def dim_mm(self, modalidad='t1'):
         return self.cargar(modalidad).header.get_zooms()
     
-def cargar_pacientes(manifest='data/manifest.csv'):
+def cargar_pacientes(manifest='datos/brats2018/manifest.csv'):
     
     return [Paciente.desde_fila(f) for _, f in pd.read_csv(manifest).iterrows()]
 

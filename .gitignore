@@ -1,12 +1,17 @@
+# Entornos y editores
 .venv/
 venv/
-data/
-__pycache__/
-*.pyc
 .env
 .vscode
-data_normalizada/
-resultados/variante_b/imagenes/
-nnunet_raw/
-predicciones_oof/
-segmentaciones_pred/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Datos e imagenes (pesados, regenerables o con licencia de BraTS): ver README
+datos/
+logs/
+
+# Resultados: se versionan las tablas finales; no las intermedias pesadas
+resultados/**/caracteristicas.csv
+resultados/**/caracteristicas_qc.csv
+resultados/**/diagnosticos.csv

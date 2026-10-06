@@ -5,7 +5,7 @@ Reto CIMAT / BraTS 2018
 Genera el dataset crudo que espera nnU-Net, igual que su conversor oficial de
 BraTS (Dataset137_BraTS2021):
 
-    nnunet_raw/Dataset501_BraTS2018/
+    datos/nnunet_raw/Dataset501_BraTS2018/
       imagesTr/<paciente>_0000.nii.gz   t1     (enlace duro al original: 0 bytes extra)
                <paciente>_0001.nii.gz   t1ce
                <paciente>_0002.nii.gz   t2
@@ -19,7 +19,7 @@ Etiquetas: BraTS 0/1/2/4 -> nnU-Net 0/2/1/3
 Asi las regiones son anidadas y consecutivas:
     WT = {1,2,3}   TC = {2,3}   ET = {3}
 
-Se usan las imagenes ORIGINALES, no data_normalizada: nnU-Net normaliza por su
+Se usan las imagenes ORIGINALES, no datos/normalizada: nnU-Net normaliza por su
 cuenta (z-score sobre los voxeles no nulos, el mismo criterio que el Bloque 3).
 
 Uso (desde la raiz del repo):
@@ -38,12 +38,12 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "radiomica"))
 import paciente as p  # noqa: E402
 
-MANIFEST = Path("data/manifest.csv")
+MANIFEST = Path("datos/brats2018/manifest.csv")
 FOLDS = Path("particiones/folds.csv")
-DATASET = Path("nnunet_raw/Dataset501_BraTS2018")
+DATASET = Path("datos/nnunet_raw/Dataset501_BraTS2018")
 
 CANALES = {"t1": "0000", "t1ce": "0001", "t2": "0002", "flair": "0003"}
 BRATS_A_NNUNET = {0: 0, 2: 1, 1: 2, 4: 3}
@@ -80,14 +80,14 @@ def enlazar(origen, destino):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--zip", action="store_true", help="crea nnunet_raw/Dataset501_BraTS2018.zip")
+    parser.add_argument("--zip", action="store_true", help="crea datos/nnunet_raw/Dataset501_BraTS2018.zip")
     args = parser.parse_args()
 
     pacientes = p.cargar_pacientes(MANIFEST)
     folds = pd.read_csv(FOLDS)
     ids = {pac.paciente_id for pac in pacientes}
     if set(folds["paciente_id"]) != ids:
-        raise SystemExit("particiones/folds.csv y data/manifest.csv no tienen los mismos pacientes")
+        raise SystemExit("particiones/folds.csv y datos/brats2018/manifest.csv no tienen los mismos pacientes")
 
     (DATASET / "imagesTr").mkdir(parents=True, exist_ok=True)
     (DATASET / "labelsTr").mkdir(parents=True, exist_ok=True)

@@ -2,7 +2,7 @@
 BLOQUE 6 - CONTROL DE CALIDAD DE LA TABLA
 Reto CIMAT / BraTS
 
-Revisa resultados/caracteristicas.csv antes de modelar:
+Revisa resultados/radiomica/manual/caracteristicas.csv antes de modelar:
   1. cordura    -> volumenes conocidos (WT de Brats18_2013_2_1 ~ 61.000 mm3)
                    y VoxelVolume == voxeles contados en el Bloque 4
   2. columnas   -> el numero y los nombres cuadran con params + plan
@@ -15,17 +15,17 @@ Las pruebas 1, 2 y 6 son CRITICAS: si fallan no se escribe la tabla limpia y el
 script termina con codigo 1. Las demas se reportan para revision humana.
 
 Entrada:
-    resultados/caracteristicas.csv
-    data_normalizada/manifest.csv, data_normalizada/manifest_regiones.csv
+    resultados/radiomica/manual/caracteristicas.csv
+    datos/normalizada/manifest.csv, datos/normalizada/manifest_regiones.csv
     params_brats2018_v0.yaml
 
 Salida:
-    resultados/caracteristicas_qc.csv     <- tabla validada (sin constantes), entrada del Bloque 7
-    resultados/columnas_eliminadas.csv    <- que columna se quito y por que
+    resultados/radiomica/manual/caracteristicas_qc.csv     <- tabla validada (sin constantes), entrada del Bloque 7
+    resultados/radiomica/manual/columnas_eliminadas.csv    <- que columna se quito y por que
     logs/control_calidad_<fecha>.txt
 
 Uso (desde la raiz del repo):
-    python scripts/control_calidad.py
+    python radiomica/control_calidad.py
 """
 
 import logging

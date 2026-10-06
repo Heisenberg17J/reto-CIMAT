@@ -1,0 +1,31 @@
+{
+  "variante": "pred",
+  "sin_filtro": false,
+  "reseccion": false,
+  "permutar": true,
+  "repeticiones": 3,
+  "nucleos": 10,
+  "ga_poblacion": 20,
+  "ga_generaciones": 10,
+  "etiqueta": "prueba_permutada",
+  "descripcion": "variante=pred | filtro D26=si | reseccion=no | 163 pacientes | 935 caracteristicas + 1 clinicas",
+  "ga": {
+    "poblacion": 20,
+    "generaciones": 10,
+    "torneo": 3,
+    "cxpb": 0.7,
+    "elites": 2,
+    "k_max": 10,
+    "k_inicial": 5,
+    "penalizacion": 0.002,
+    "alpha_aptitud": 1.0,
+    "umbral_grupo": 0.9
+  },
+  "fecha": "2026-10-06T13:34:10",
+  "versiones": {
+    "sksurv": "0.23.1",
+    "deap": "1.4",
+    "sklearn": "1.5.2",
+    "numpy": "1.26.4"
+  }
+}

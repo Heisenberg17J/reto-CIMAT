@@ -13,13 +13,13 @@ Si se activan filtros (LoG/Wavelet), el filtro va dentro de <clase> con guiones:
     t1ce_ET_wavelet-LLH-glcm_Contrast
 
 Entrada:
-    data_normalizada/manifest.csv
-    data_normalizada/manifest_regiones.csv    <- generado por regiones.py
+    datos/normalizada/manifest.csv
+    datos/normalizada/manifest_regiones.csv    <- generado por regiones.py
     params_brats2018_v0.yaml
 
 Salida:
-    resultados/caracteristicas.csv   <- una fila por paciente (para el modelo)
-    resultados/diagnosticos.csv      <- una fila por llamada a PyRadiomics
+    resultados/radiomica/manual/caracteristicas.csv   <- una fila por paciente (para el modelo)
+    resultados/radiomica/manual/diagnosticos.csv      <- una fila por llamada a PyRadiomics
                                         (columnas diagnostics_*: versiones,
                                         parametros, hash y tamano de mascara)
     logs/extraccion_<fecha>.txt      <- que paciente fallo y por que
@@ -29,8 +29,8 @@ caracteristicas.csv. Una region con estado distinto de "ok" en el Bloque 4 se
 omite y sus columnas quedan como NaN.
 
 Uso (desde la raiz del repo):
-    python scripts/extraccion.py
-    python scripts/extraccion.py --pacientes Brats18_2013_2_1 Brats18_2013_3_1
+    python radiomica/extraccion.py
+    python radiomica/extraccion.py --pacientes Brats18_2013_2_1 Brats18_2013_3_1
 """
 
 import argparse
@@ -46,7 +46,7 @@ import radiomics
 import regiones as r
 import variante as v
 
-SALIDA = v.RESULTADOS          # resultados/ o resultados/pred/ (variante.py)
+SALIDA = v.RESULTADOS          # resultados/radiomica/manual/ o .../pred/ (variante.py)
 LOGS = Path("logs")
 
 PREFIJO_DIAG = "diagnostics_"

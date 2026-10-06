@@ -25,11 +25,12 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 
-CLINICA = Path("data/clinica.csv")
+CLINICA = Path("datos/brats2018/clinica.csv")
 FOLDS_D22 = Path("particiones/folds.csv")
 FOLDS_PRONOSTICO = Path("particiones/folds_pronostico.csv")
-ROBUSTEZ = Path("resultados/robustez_segmentacion.csv")
-FEATURES = {"pred": Path("resultados/pred/features.csv"), "manual": Path("resultados/features.csv")}
+ROBUSTEZ = Path("resultados/pronostico/robustez_segmentacion.csv")
+FEATURES = {"pred": Path("resultados/radiomica/pred/features.csv"),
+            "manual": Path("resultados/radiomica/manual/features.csv")}
 
 CORTE_ROBUSTEZ = 0.85          # Spearman manual vs predicha (D26)
 CORTES_DIAS = (300, 450)       # clases de BraTS 2018: < 10, 10-15, > 15 meses
