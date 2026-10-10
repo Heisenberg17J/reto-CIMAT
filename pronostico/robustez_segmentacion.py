@@ -7,10 +7,17 @@ predicha por nnU-Net (D24, D25), en los 163 HGG con supervivencia: los pacientes
 del pronostico. Una caracteristica que cambia mucho segun quien dibujo la mascara
 no es confiable para el modelo.
 
-Medida: coeficiente de concordancia de Lin (CCC). A diferencia de la correlacion,
-baja tambien si la mascara predicha desplaza o cambia la escala de los valores,
-no solo si cambia el orden de los pacientes. Corte habitual en radiomica:
-CCC >= 0.85 = robusta.
+Dos medidas por caracteristica (corte habitual en radiomica: 0.85):
+    spearman  rho de Spearman: se conserva el orden de los pacientes.
+              ES EL CRITERIO DEL FILTRO (D26): entran al modelo las caracteristicas
+              con spearman >= 0.85 (935 de 1146). Lo aplica datos.cargar_cohorte.
+    ccc       concordancia de Lin: baja tambien si la mascara predicha desplaza o
+              cambia la escala de los valores. Es DESCRIPTIVA: mide el sesgo de la
+              mascara predicha y prohibe mezclar variantes, pero no filtra. La
+              columna 'robusta' del CSV es ccc >= 0.85 y no la usa el modelo.
+Por que Spearman: el modelo se entrena y evalua siempre con la variante predicha,
+asi que un desplazamiento sistematico no le hace dano; si se lo hace que el
+contorno reordene a los pacientes.
 
 No usa la supervivencia: es un filtro sin etiqueta, como el de columnas
 constantes (D17), y no filtra informacion del objetivo hacia la validacion.
@@ -86,6 +93,7 @@ def main():
 
     print(f"{len(ids)} HGG con supervivencia | {len(r)} caracteristicas | corte CCC >= {CORTE}")
     print(f"robustas: {int(r.robusta.sum())} ({r.robusta.mean():.0%})  |  CCC mediano: {r.ccc.median():.3f}")
+    print(f"filtro del modelo (D26), Spearman >= {CORTE}: {int((r.spearman >= CORTE).sum())} caracteristicas")
 
     print("\n% de caracteristicas robustas por region y clase:")
     tabla = r.pivot_table(index="clase", columns="region", values="robusta", aggfunc="mean")

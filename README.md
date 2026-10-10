@@ -19,9 +19,9 @@ El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aqu
 | Segmentación: conversión a nnU-Net y prueba de 5 épocas en Colab | Terminada |
 | Segmentación: 5 folds (100 épocas) + posprocesado de ET | Terminada: Dice fuera de fold WT 0.907, TC 0.842, ET 0.769; HD95 mediano 3.6 / 3.5 / 2.2 mm (D24, D28) |
 | Pronóstico: radiómica sobre máscaras predichas | Terminada: `resultados/radiomica/pred/features.csv`, 285 × 1146, sin NaN en los 163 HGG con supervivencia (D25) |
-| Pronóstico: robustez frente a la segmentación | Terminada: 70 % con CCC ≥ 0.85, 82 % conservan el orden (D26) |
+| Pronóstico: robustez frente a la segmentación | Terminada: filtro Spearman ≥ 0.85, 935 de 1146 (82 %) conservan el orden de los pacientes; el CCC (70 % ≥ 0.85) es descriptivo (D26) |
 | Pronóstico: genético frente a Elastic Net (5 × 10 folds) | Terminada: edad 0.624, Elastic Net 0.622, genético 0.605 (c-index); la radiómica no supera a la edad y el genético sobreajusta (+0.09) (D27) |
-| Pronóstico: filtro de robustez dentro de cada fold | Terminada: mismos resultados (Elastic Net 0.622, genético 0.602); 930 ± 21 características por fold (D31) |
+| Experimento: filtro de robustez dentro de cada fold | Terminado, solo sensibilidad: mismos resultados (Elastic Net 0.622, genético 0.602); 930 ± 21 características por fold. El principal sigue con el filtro global (D31) |
 
 ## Datos
 
@@ -110,7 +110,7 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 1. **Robustez** frente a la segmentación: `python pronostico/robustez_segmentacion.py` (D26).
 2. **Comparación** de edad sola, Cox Elastic Net y genético + Cox con validación cruzada anidada de 5 × 10 folds, unos 14 minutos en CPU (D27):
    ```
-   python pronostico/evaluar.py                      # principal: máscaras predichas + filtro D26
+   python pronostico/evaluar.py                      # principal: máscaras predichas + filtro D26 global (935)
    python pronostico/evaluar.py --variante manual    # secundarios: --sin-filtro, --reseccion, --filtro-por-fold (D31)
    python pronostico/comparar_filtro.py              # filtro global frente a filtro por fold (D31)
    python pronostico/evaluar.py --permutar           # control: supervivencia barajada

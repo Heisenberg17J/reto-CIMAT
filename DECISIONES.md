@@ -739,3 +739,9 @@ generada con `pronostico/comparar_filtro.py`):
 **Conclusión:** calcular el filtro con los pacientes de prueba no infló ningún resultado. Las conclusiones de
 D27 se mantienen con el procedimiento estricto. El análisis principal sigue siendo el de D27; este queda como
 análisis de sensibilidad que respalda la metodología.
+
+**Cierre (2026-10-10):**
+- El criterio del filtro es Spearman y el CCC es descriptivo; la docstring de `robustez_segmentacion.py`
+  se corrigió en ese sentido.
+- Se reporta como principal el filtro inicial (global, 935). D31 queda como experimento.
+- El modelo final (D30) no cambia.

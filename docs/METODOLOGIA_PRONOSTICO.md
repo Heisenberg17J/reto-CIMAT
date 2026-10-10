@@ -114,11 +114,16 @@ entre máscaras, sin ver ningún resultado de supervivencia."*
   (área de superficie −20 %, esfericidad +23 %, volumen −2 %) y prohíbe mezclar variantes: un modelo
   entrenado con características manuales no se puede aplicar a las predichas (D26, consecuencia 1).
 
-### 2.6 Inconsistencia a corregir en el repositorio
+### 2.6 Criterio oficial y análisis reportado
 
-En `robustez_segmentacion.py`, la docstring describe el CCC como el criterio y la columna `robusta` del CSV
-es `ccc >= 0.85` (805 características). El filtro que usa el modelo es la columna `spearman` (935). Al citar
-números hay que usar los de `spearman`. Conviene actualizar la docstring para que no confunda.
+- **El criterio del filtro es Spearman ≥ 0.85 (935 características).** El CCC es solo descriptivo. Desde el
+  2026-10-10, la docstring de `robustez_segmentacion.py` lo dice así y el script imprime el número de
+  características del filtro. La columna `robusta` del CSV sigue siendo `ccc >= 0.85` (805) y el modelo no la
+  usa. Se dejó igual para no cambiar el sha256 de una tabla versionada.
+- **El análisis principal usa el filtro inicial**: una lista global calculada con los 163 pacientes. El filtro
+  calculado dentro de cada fold (D31) fue un experimento de sensibilidad y se reporta como tal.
+- **El modelo final (D30) usa la misma lista de 935.** Con los 163 pacientes, las dos formas de calcular el
+  filtro coinciden por construcción.
 
 ## 3. Métricas finales (análisis principal)
 
