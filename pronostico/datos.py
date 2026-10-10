@@ -44,6 +44,7 @@ class Cohorte:
     dias: pd.Series
     clase: pd.Series
     descripcion: str
+    X_manual: pd.DataFrame = None   # solo con filtro="fold": para calcular la robustez en cada fold
 
 
 def clase_por_dias(dias):
@@ -53,11 +54,20 @@ def clase_por_dias(dias):
 
 
 def cargar_cohorte(variante="pred", filtro=True, reseccion=False):
+    """filtro: True = lista global de D26 (935); False = sin filtro (1146); "fold" = sin
+    recortar X, pero con X_manual para que evaluar.py calcule el filtro en cada fold."""
     c = pd.read_csv(CLINICA).set_index("paciente_id")
     c = c[c["tiene_supervivencia"]].sort_index()
 
     X = pd.read_csv(FEATURES[variante]).set_index("paciente_id").loc[c.index]
-    if filtro:
+    X_manual = None
+    if filtro == "fold":
+        if variante != "pred":
+            raise ValueError("el filtro por fold solo tiene sentido con la variante pred")
+        X_manual = pd.read_csv(FEATURES["manual"]).set_index("paciente_id").loc[c.index][X.columns]
+        if X_manual.isna().any().any():
+            raise ValueError("hay NaN en las caracteristicas manuales de la cohorte")
+    elif filtro:
         rob = pd.read_csv(ROBUSTEZ)
         X = X[rob.loc[rob["spearman"] >= CORTE_ROBUSTEZ, "columna"].tolist()]
     if X.isna().any().any():
@@ -70,10 +80,11 @@ def cargar_cohorte(variante="pred", filtro=True, reseccion=False):
                            reseccion_STR=(c["reseccion"] == "STR").astype(float))
 
     dias = c["supervivencia_dias"].astype(float)
-    desc = (f"variante={variante} | filtro D26={'si' if filtro else 'no'} | "
+    txt_filtro = "por fold" if filtro == "fold" else ("si" if filtro else "no")
+    desc = (f"variante={variante} | filtro D26={txt_filtro} | "
             f"reseccion={'si' if reseccion else 'no'} | {len(c)} pacientes | "
             f"{X.shape[1]} caracteristicas + {clin.shape[1]} clinicas")
-    return Cohorte(X, clin, dias, pd.Series(clase_por_dias(dias), index=c.index), desc)
+    return Cohorte(X, clin, dias, pd.Series(clase_por_dias(dias), index=c.index), desc, X_manual)
 
 
 def particiones_externas(cohorte):

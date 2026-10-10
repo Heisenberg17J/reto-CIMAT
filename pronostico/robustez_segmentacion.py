@@ -49,6 +49,19 @@ def ccc(x, y):
     return np.nan if denom == 0 else 2 * cov / denom
 
 
+def columnas_robustas(manual, pred, corte=CORTE):
+    """Columnas con Spearman (manual vs predicha) >= corte en estos pacientes.
+
+    Mismo calculo que la columna 'spearman' de main(), pero sobre las filas que
+    se le pasen: evaluar.py --filtro-por-fold la llama solo con el entrenamiento
+    externo de cada fold. Un Spearman indefinido (columna constante) no pasa.
+    """
+    if list(manual.columns) != list(pred.columns) or list(manual.index) != list(pred.index):
+        raise ValueError("las tablas manual y predicha no estan alineadas")
+    return [col for col in manual.columns
+            if spearmanr(manual[col].to_numpy(float), pred[col].to_numpy(float))[0] >= corte]
+
+
 def main():
     grupo = pd.read_csv(FOLDS).set_index("paciente_id")["grupo"]
     ids = grupo.index[grupo == "HGG_superv"]

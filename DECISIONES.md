@@ -699,3 +699,43 @@ de prueba quedó idéntico.
   entrenamiento. Para medir la exactitud hacen falta casos externos.
 - Es un **prototipo de investigación, no una herramienta clínica**. El aviso aparece en la salida, en el JSON
   y en la figura.
+
+### D31. Filtro de robustez dentro de cada fold externo — Tomada
+**Pregunta:** el filtro D26 (Spearman manual vs predicha ≥ 0.85) se calculó una vez con los 163 pacientes,
+incluidos los que después son de prueba. ¿Cambia algo si se calcula solo con el entrenamiento externo?
+
+**Diseño (2026-10-10):** `python pronostico/evaluar.py --filtro-por-fold`. Solo cambia el punto donde se
+calcula el filtro; todo lo demás queda igual que en el análisis principal:
+- las mismas particiones (`folds_pronostico.csv`, sha256 sin cambios), semillas, brazos e hiperparámetros;
+- en cada fold, `robustez_segmentacion.columnas_robustas` calcula el Spearman con las máscaras manuales y
+  predichas de los pacientes de entrenamiento;
+- la lista resultante se aplica al entrenamiento y a la prueba; la radiómica que entra al modelo sigue siendo
+  la de las máscaras predichas;
+- la CV interna de Elastic Net y del genético se repite dentro del entrenamiento, como antes.
+
+**Controles antes de la corrida:**
+- Con los 163 pacientes, `columnas_robustas` devuelve exactamente las 935 de D26.
+- Camino original sin cambios: el fold 0 de la repetición 0 reproduce el c-index y el k guardados.
+- Sin fuga: si se reemplazan por ruido las características manuales de los pacientes de prueba, la lista y
+  todos los resultados del fold son idénticos.
+
+**Resultado** (`resultados/pronostico/pred_filtrofold/`, comparación en `comparacion_filtro.txt`,
+generada con `pronostico/comparar_filtro.py`):
+
+| | Filtro global (D26) | Filtro por fold | Diferencia pareada (p corregido) |
+|---|---|---|---|
+| Edad sola | 0.624 | 0.624 | 0 (la edad no usa radiómica) |
+| Cox Elastic Net | 0.622 | 0.622 | −0.000 (0.86); 66 % de folds idénticos |
+| Genético + Cox | 0.605 | 0.602 | −0.003 (0.90) |
+| Brecha del genético | +0.090 | +0.092 | |
+| Genético − Elastic Net | −0.017 (p = 0.50) | −0.020 (p = 0.51) | |
+
+- **Características retenidas por fold:** 930 ± 21 (885–966). Jaccard entre folds 0.95; Nogueira 0.87.
+  857 se retienen en los 50 folds y 124 en ninguno. Las 165 que entran y salen tienen un Spearman global de
+  0.77 a 0.88: están en el borde del corte.
+- **Tiempo:** el filtro cuesta 3 s por fold (156 s en total). La corrida completa tardó 16.3 min, frente a
+  14.1 min; esa diferencia sale sobre todo del genético y no se midió en condiciones controladas.
+
+**Conclusión:** calcular el filtro con los pacientes de prueba no infló ningún resultado. Las conclusiones de
+D27 se mantienen con el procedimiento estricto. El análisis principal sigue siendo el de D27; este queda como
+análisis de sensibilidad que respalda la metodología.

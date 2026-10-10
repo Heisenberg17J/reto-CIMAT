@@ -1,0 +1,37 @@
+FILTRO D26 GLOBAL (935, 163 pacientes) FRENTE A FILTRO DENTRO DE CADA FOLD EXTERNO
+50 folds externos (5 x 10), mismas particiones y semillas
+
+1. C-INDEX EXTERNO (media y DE sobre 50 folds) Y DIFERENCIA PAREADA fold - global
+  edad      global 0.624 (0.046) | por fold 0.624 (0.046) | dif +0.000 (DE 0.000) | folds identicos 100% | p corregido = nan
+  coxnet    global 0.622 (0.046) | por fold 0.622 (0.047) | dif -0.000 (DE 0.005) | folds identicos 66% | p corregido = 0.862
+  genetico  global 0.605 (0.054) | por fold 0.602 (0.056) | dif -0.003 (DE 0.047) | folds identicos 4% | p corregido = 0.899
+  exactitud: edad 0.454 -> 0.454 | coxnet 0.477 -> 0.477 | genetico 0.440 -> 0.444
+  spearman : edad 0.358 -> 0.358 | coxnet 0.352 -> 0.352 | genetico 0.300 -> 0.291
+  rmse dias: edad 333 -> 333 | coxnet 336 -> 336 | genetico 354 -> 344
+
+2. OPTIMISMO DEL GENETICO (c interna - c externo)
+  global   : c interna 0.695 | c externo 0.605 | brecha +0.090 (DE 0.062) | k 6.9 | representantes 266
+  por fold : c interna 0.694 | c externo 0.602 | brecha +0.092 (DE 0.067) | k 6.8 | representantes 266
+
+3. DIFERENCIAS ENTRE BRAZOS (c-index pareado, t de Nadeau-Bengio)
+  global   : coxnet-edad -0.002 (p=0.82) | genetico-edad -0.020 (p=0.49) | genetico-coxnet -0.017 (p=0.50)
+  por fold : coxnet-edad -0.003 (p=0.80) | genetico-edad -0.023 (p=0.48) | genetico-coxnet -0.020 (p=0.51)
+
+4. ESTABILIDAD DEL FILTRO ENTRE FOLDS
+  caracteristicas retenidas: media 929.7 | DE 20.5 | min 885 | max 966 (global: 935)
+  Jaccard medio entre folds 0.952 | Nogueira 0.869
+  Jaccard medio con la lista global 0.965
+  retenidas en los 50 folds: 857 | en ninguno: 124 | inestables (1 a 49): 165
+  de la lista global, retenidas en todos los folds: 857; fuera de la global pero retenidas en algun fold: 87
+  Spearman global de las inestables: 0.767 a 0.883 (mediana 0.848)
+
+   Estabilidad de la seleccion de los brazos (Nogueira, universo de 1146 en ambas)
+   coxnet   : global Nogueira 0.195 / Jaccard 0.138 | por fold Nogueira 0.173 / Jaccard 0.128
+   genetico : global Nogueira 0.055 / Jaccard 0.034 | por fold Nogueira 0.054 / Jaccard 0.034
+
+5. TIEMPO DE EJECUCION
+  corrida completa (10 nucleos): global 14.1 min | por fold 16.3 min
+  filtro por fold: 3.12 s por fold (156 s en total)
+  edad     : 0.1 s por fold global | 0.1 s por fold con filtro por fold
+  coxnet   : 3.8 s por fold global | 5.0 s por fold con filtro por fold
+  genetico : 158.8 s por fold global | 181.0 s por fold con filtro por fold

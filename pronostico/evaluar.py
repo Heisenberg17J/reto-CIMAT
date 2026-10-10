@@ -15,12 +15,14 @@ Salida en resultados/pronostico/<etiqueta>/:
     curvas_genetico.csv   aptitud por generacion
     resumen.txt           tablas finales (tambien en el log)
     config.json           argumentos, versiones y fecha
+    filtro_por_fold.csv   (solo --filtro-por-fold) caracteristicas que pasan el filtro en cada fold
 Log: logs/pronostico_<etiqueta>_<fecha>.txt
 
 Uso (desde la raiz del repo):
     python pronostico/evaluar.py                          # principal: pred + filtro D26
     python pronostico/evaluar.py --variante manual        # secundario: mascara manual
     python pronostico/evaluar.py --sin-filtro             # secundario: 1146 caracteristicas
+    python pronostico/evaluar.py --filtro-por-fold        # secundario: filtro D26 con el entrenamiento de cada fold
     python pronostico/evaluar.py --reseccion              # secundario: + reseccion
     python pronostico/evaluar.py --permutar               # control: supervivencia barajada
     python pronostico/evaluar.py --repeticiones 1 --ga-poblacion 10 --ga-generaciones 3   # prueba rapida
@@ -48,6 +50,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brazos as b    # noqa: E402
 import datos as d     # noqa: E402
 import metricas as m  # noqa: E402
+import robustez_segmentacion as rob  # noqa: E402
 
 LOGS = Path("logs")
 
@@ -57,12 +60,20 @@ def tarea(rep, fold, ids_tr, ids_te, cohorte, ga):
     assert not set(ids_tr) & set(ids_te), "entrenamiento y prueba se solapan"
     c = cohorte
     semilla = 1000 * rep + fold
-    filas, oof, sel, curvas = [], [], [], []
+    filas, oof, sel, curvas, filtro = [], [], [], [], []
+    X, info_filtro = c.X, {}
+    if c.X_manual is not None:
+        # Filtro D26 solo con el entrenamiento externo: las mascaras manuales de la prueba no se miran
+        t0 = time.time()
+        cols = rob.columnas_robustas(c.X_manual.loc[ids_tr], c.X.loc[ids_tr], d.CORTE_ROBUSTEZ)
+        X = c.X[cols]
+        info_filtro = dict(n_filtro=len(cols), segundos_filtro=round(time.time() - t0, 2))
+        filtro = [dict(repeticion=rep, fold=fold, caracteristica=col) for col in cols]
     for nombre, ajustar in b.BRAZOS.items():
         t0 = time.time()
         kw = {"ga": ga} if nombre == "genetico" else {}
-        r = ajustar(c.clin.loc[ids_tr], c.X.loc[ids_tr], c.dias.loc[ids_tr],
-                    c.clin.loc[ids_te], c.X.loc[ids_te], semilla, **kw)
+        r = ajustar(c.clin.loc[ids_tr], X.loc[ids_tr], c.dias.loc[ids_tr],
+                    c.clin.loc[ids_te], X.loc[ids_te], semilla, **kw)
         dias_te, clase_te = c.dias.loc[ids_te].to_numpy(), c.clase.loc[ids_te].to_numpy()
         clase_pred = m.clases_desde_riesgo(r["riesgo_train"], c.clase.loc[ids_tr].to_numpy(), r["riesgo_test"])
         extra = {k: v for k, v in r["extra"].items() if k != "curva"}
@@ -71,7 +82,7 @@ def tarea(rep, fold, ids_tr, ids_te, cohorte, ga):
                     exactitud=m.exactitud(clase_te, clase_pred),
                     spearman=m.spearman(dias_te, r["riesgo_test"]),
                     mse=m.mse(dias_te, r["dias_pred_test"]),
-                    k=len(r["seleccion"]), segundos=round(time.time() - t0, 1), **extra)
+                    k=len(r["seleccion"]), segundos=round(time.time() - t0, 1), **info_filtro, **extra)
         if "c_interna" in extra:
             fila["brecha"] = extra["c_interna"] - fila["cindex"]
         filas.append(fila)
@@ -81,7 +92,7 @@ def tarea(rep, fold, ids_tr, ids_te, cohorte, ga):
                                                    r["dias_pred_test"], clase_te, clase_pred)]
         sel += [dict(repeticion=rep, fold=fold, brazo=nombre, caracteristica=s) for s in r["seleccion"]]
         curvas += [dict(repeticion=rep, fold=fold, **g) for g in r["extra"].get("curva", [])]
-    return filas, oof, sel, curvas
+    return filas, oof, sel, curvas, filtro
 
 
 def t_corregido(dif, n_train, n_test):
@@ -146,6 +157,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--variante", choices=["pred", "manual"], default="pred")
     ap.add_argument("--sin-filtro", action="store_true")
+    ap.add_argument("--filtro-por-fold", action="store_true",
+                    help="calcula el filtro D26 con el entrenamiento de cada fold externo")
     ap.add_argument("--reseccion", action="store_true")
     ap.add_argument("--permutar", action="store_true", help="baraja la supervivencia (control de fugas)")
     ap.add_argument("--repeticiones", type=int, default=d.N_REPETICIONES)
@@ -155,7 +168,10 @@ def main():
     ap.add_argument("--etiqueta", help="nombre de la carpeta de salida (por defecto, segun las opciones)")
     args = ap.parse_args()
 
-    cohorte = d.cargar_cohorte(args.variante, filtro=not args.sin_filtro, reseccion=args.reseccion)
+    if args.filtro_por_fold and args.sin_filtro:
+        ap.error("--filtro-por-fold y --sin-filtro son excluyentes")
+    filtro = "fold" if args.filtro_por_fold else not args.sin_filtro
+    cohorte = d.cargar_cohorte(args.variante, filtro=filtro, reseccion=args.reseccion)
     part = d.particiones_externas(cohorte)
     if args.permutar:
         rng = np.random.default_rng(12345)
@@ -163,6 +179,7 @@ def main():
         cohorte.clase[:] = d.clase_por_dias(cohorte.dias)
 
     etiqueta = args.etiqueta or "_".join([args.variante] + (["sinfiltro"] if args.sin_filtro else [])
+                                         + (["filtrofold"] if args.filtro_por_fold else [])
                                          + (["reseccion"] if args.reseccion else [])
                                          + (["permutado"] if args.permutar else []))
     salida = Path("resultados/pronostico") / etiqueta
@@ -198,6 +215,8 @@ def main():
     oof.to_csv(salida / "predicciones_oof.csv", index=False)
     sel.to_csv(salida / "seleccion.csv", index=False)
     curvas.to_csv(salida / "curvas_genetico.csv", index=False)
+    if args.filtro_por_fold:
+        pd.DataFrame([f for r in res for f in r[4]]).to_csv(salida / "filtro_por_fold.csv", index=False)
 
     (salida / "resumen.txt").write_text(resumir(pf, sel, cohorte, args.repeticiones, log) + "\n")
     import deap

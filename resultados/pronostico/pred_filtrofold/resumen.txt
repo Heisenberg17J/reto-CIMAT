@@ -1,0 +1,25 @@
+METRICAS POR FOLD EXTERNO (media y DE sobre repeticiones x folds)
+          cindex_mean  cindex_std  exactitud_mean  exactitud_std  spearman_mean  spearman_std  k_mean  k_std  rmse_mean
+brazo                                                                                                                  
+edad            0.624       0.046           0.454          0.071          0.358         0.127    0.00  0.000    333.450
+coxnet          0.622       0.047           0.477          0.075          0.352         0.133    9.82  8.694    336.488
+genetico        0.602       0.056           0.444          0.081          0.291         0.157    6.76  1.890    343.819
+
+c-index medio por repeticion (DE entre repeticiones = variabilidad de la particion):
+brazo   edad  coxnet  genetico
+mean   0.624   0.622     0.602
+std    0.005   0.009     0.018
+
+DIFERENCIAS PAREADAS DE c-index (por fold externo)
+  coxnet    - edad   : -0.003 (DE 0.020) | a favor en 32% de 50 folds | p corregido = 0.799
+  genetico  - edad   : -0.023 (DE 0.062) | a favor en 34% de 50 folds | p corregido = 0.485
+  genetico  - coxnet : -0.020 (DE 0.058) | a favor en 36% de 50 folds | p corregido = 0.509
+
+GENETICO: optimismo de su aptitud
+  c interna 0.694 vs c externo 0.602 -> brecha +0.092 (DE 0.067) | k medio 6.8 | representantes 266
+
+ESTABILIDAD DE LA SELECCION entre folds externos
+  coxnet   : Jaccard medio 0.128 | Nogueira 0.173
+     mas elegidas: mask_TC_shape_SurfaceArea (21/50), t2_TC_glcm_Idn (20/50), t2_TC_glcm_Idmn (20/50), flair_WT_glcm_MCC (19/50), flair_WT_glszm_LargeAreaLowGrayLevelEmphasis (16/50)
+  genetico : Jaccard medio 0.034 | Nogueira 0.054
+     mas elegidas: mask_TC_shape_Maximum2DDiameterRow (16/50), flair_WT_glcm_Correlation (11/50), mask_WT_shape_Maximum2DDiameterColumn (10/50), t1_TC_glszm_ZoneVariance (7/50), t2_TC_firstorder_90Percentile (6/50)

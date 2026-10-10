@@ -21,6 +21,7 @@ El porqué de cada decisión está en [DECISIONES.md](DECISIONES.md), citado aqu
 | Pronóstico: radiómica sobre máscaras predichas | Terminada: `resultados/radiomica/pred/features.csv`, 285 × 1146, sin NaN en los 163 HGG con supervivencia (D25) |
 | Pronóstico: robustez frente a la segmentación | Terminada: 70 % con CCC ≥ 0.85, 82 % conservan el orden (D26) |
 | Pronóstico: genético frente a Elastic Net (5 × 10 folds) | Terminada: edad 0.624, Elastic Net 0.622, genético 0.605 (c-index); la radiómica no supera a la edad y el genético sobreajusta (+0.09) (D27) |
+| Pronóstico: filtro de robustez dentro de cada fold | Terminada: mismos resultados (Elastic Net 0.622, genético 0.602); 930 ± 21 características por fold (D31) |
 
 ## Datos
 
@@ -110,7 +111,8 @@ Se descartó agrupar por centro: CBICA sola es la mitad de los datos. Por eso la
 2. **Comparación** de edad sola, Cox Elastic Net y genético + Cox con validación cruzada anidada de 5 × 10 folds, unos 14 minutos en CPU (D27):
    ```
    python pronostico/evaluar.py                      # principal: máscaras predichas + filtro D26
-   python pronostico/evaluar.py --variante manual    # secundarios: --sin-filtro, --reseccion
+   python pronostico/evaluar.py --variante manual    # secundarios: --sin-filtro, --reseccion, --filtro-por-fold (D31)
+   python pronostico/comparar_filtro.py              # filtro global frente a filtro por fold (D31)
    python pronostico/evaluar.py --permutar           # control: supervivencia barajada
    ```
 3. **Análisis:** `pronostico/analisis.ipynb`, con el kernel `radiomica`, local.
@@ -136,7 +138,7 @@ Bakas S. et al. *Identifying the Best Machine Learning Algorithms for Brain Tumo
 ## Estructura
 
 ```
-README.md, DECISIONES.md        qué se hizo y por qué (D0–D30)
+README.md, DECISIONES.md        qué se hizo y por qué (D0–D31)
 requirements.txt, crear_env.sh  entorno "radiomica"
 config/                         parámetros de PyRadiomics
 docs/                           documentos de apoyo al diseño del pronóstico y ejercicios iniciales
